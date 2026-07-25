@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useStudents from "../hooks/useStudents";
 
 import StudentTable from "../components/students/StudentTable";
@@ -14,20 +14,30 @@ export default function Students() {
 
   const [showModal, setShowModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Open Add Modal
+  const filteredStudents = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+
+    return students.filter((student) => {
+      return (
+        student.name.toLowerCase().includes(term) ||
+        student.parent.toLowerCase().includes(term) ||
+        student.phone.toLowerCase().includes(term)
+      );
+    });
+  }, [students, searchTerm]);
+
   const handleAdd = () => {
     setSelectedStudent(null);
     setShowModal(true);
   };
 
-  // Open Edit Modal
   const handleEdit = (student) => {
     setSelectedStudent(student);
     setShowModal(true);
   };
 
-  // Save (Add or Edit)
   const handleSave = (studentData) => {
     if (selectedStudent) {
       editStudent({
@@ -42,34 +52,20 @@ export default function Students() {
     setSelectedStudent(null);
   };
 
-  // Delete Student
   const handleDelete = (id) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this student?"
-    );
-
-    if (confirmDelete) {
+    if (window.confirm("Are you sure you want to delete this student?")) {
       deleteStudent(id);
     }
   };
 
   return (
     <div className="p-8">
-
-      {/* Header */}
-
       <div className="flex justify-between items-center mb-8">
-
         <div>
-
-          <h1 className="text-3xl font-bold">
-            Students
-          </h1>
-
+          <h1 className="text-3xl font-bold">Students</h1>
           <p className="text-gray-500 mt-2">
             Manage all students in your tuition portal.
           </p>
-
         </div>
 
         <button
@@ -78,18 +74,25 @@ export default function Students() {
         >
           + Add Student
         </button>
-
       </div>
 
-      {/* Table */}
+      {/* Search */}
+
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="🔍 Search by name, parent or phone..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#008388]"
+        />
+      </div>
 
       <StudentTable
-        students={students}
+        students={filteredStudents}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
-
-      {/* Modal */}
 
       <StudentModal
         isOpen={showModal}
@@ -100,7 +103,6 @@ export default function Students() {
         onSave={handleSave}
         initialData={selectedStudent}
       />
-
     </div>
   );
 }
