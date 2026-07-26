@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import useStudents from "../hooks/useStudents";
-
+import Button from "../components/ui/Button";
 import StudentTable from "../components/students/StudentTable";
 import StudentModal from "../components/students/StudentModal";
 
@@ -68,25 +68,22 @@ export default function Students() {
           </p>
         </div>
 
-        <button
-          onClick={handleAdd}
-          className="bg-[#008388] text-white px-6 py-3 rounded-xl hover:opacity-90"
-        >
-          + Add Student
-        </button>
+        <Button onClick={handleAdd}>
+  + Add Student
+</Button>
       </div>
 
       {/* Search */}
 
       <div className="mb-6">
-        <input
-          type="text"
-          placeholder="🔍 Search by name, parent or phone..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#008388]"
-        />
-      </div>
+  <input
+    type="text"
+    placeholder="🔍 Search by name, parent or phone..."
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#008388]"
+  />
+</div>
 
       <StudentTable
         students={filteredStudents}

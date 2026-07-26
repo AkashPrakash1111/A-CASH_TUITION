@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import Input from "../ui/Input";
+import Button from "../ui/Button";
 
 export default function StudentModal({
   isOpen,
@@ -46,7 +48,6 @@ export default function StudentModal({
     }
 
     onSave(formData);
-
     setFormData(emptyForm);
     onClose();
   };
@@ -63,98 +64,110 @@ export default function StudentModal({
 
         <div className="grid grid-cols-2 gap-4">
 
-          <input
-            type="text"
+          <Input
+            label="Student Name"
             name="name"
-            placeholder="Full Name"
             value={formData.name}
             onChange={handleChange}
-            className="border rounded-lg p-3"
+            placeholder="Enter student name"
           />
 
-          <input
-            type="text"
+          <Input
+            label="Class"
             name="className"
-            placeholder="Class"
             value={formData.className}
             onChange={handleChange}
-            className="border rounded-lg p-3"
+            placeholder="Enter class"
           />
 
-          <input
-            type="text"
+          <Input
+            label="Batch"
             name="batch"
-            placeholder="Batch"
             value={formData.batch}
             onChange={handleChange}
-            className="border rounded-lg p-3"
+            placeholder="Enter batch"
           />
 
-          <select
-            name="gender"
-            value={formData.gender}
-            onChange={handleChange}
-            className="border rounded-lg p-3"
-          >
-            <option value="">Select Gender</option>
-            <option>Male</option>
-            <option>Female</option>
-            <option>Other</option>
-          </select>
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Gender
+            </label>
 
-          <input
-            type="date"
-            name="dob"
-            value={formData.dob}
-            onChange={handleChange}
-            className="border rounded-lg p-3"
-          />
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-[#008388] focus:ring-2 focus:ring-[#008388]/20 outline-none"
+            >
+              <option value="">Select Gender</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
 
-          <input
-            type="text"
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Date of Birth
+            </label>
+
+            <input
+              type="date"
+              name="dob"
+              value={formData.dob}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-[#008388] focus:ring-2 focus:ring-[#008388]/20 outline-none"
+            />
+          </div>
+
+          <Input
+            label="Parent Name"
             name="parent"
-            placeholder="Parent Name"
             value={formData.parent}
             onChange={handleChange}
-            className="border rounded-lg p-3"
+            placeholder="Enter parent name"
           />
 
-          <input
-            type="text"
+          <Input
+            label="Phone Number"
             name="phone"
-            placeholder="Parent Phone"
             value={formData.phone}
             onChange={handleChange}
-            className="border rounded-lg p-3"
+            placeholder="Enter phone number"
           />
 
-          <select
-            name="status"
-            value={formData.status}
-            onChange={handleChange}
-            className="border rounded-lg p-3"
-          >
-            <option>Active</option>
-            <option>Inactive</option>
-          </select>
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Status
+            </label>
+
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-[#008388] focus:ring-2 focus:ring-[#008388]/20 outline-none"
+            >
+              <option>Active</option>
+              <option>Inactive</option>
+            </select>
+          </div>
 
         </div>
 
-        <div className="flex justify-end gap-4 mt-8">
+        <div className="flex justify-end gap-3 mt-8">
 
-          <button
+          <Button
+            variant="secondary"
             onClick={onClose}
-            className="px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 transition"
           >
             Cancel
-          </button>
+          </Button>
 
-          <button
+          <Button
             onClick={handleSubmit}
-            className="px-6 py-3 rounded-xl bg-[#008388] text-white hover:opacity-90 transition"
           >
             {initialData ? "Update Student" : "Save Student"}
-          </button>
+          </Button>
 
         </div>
 
