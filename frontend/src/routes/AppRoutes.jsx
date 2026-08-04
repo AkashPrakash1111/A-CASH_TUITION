@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "../pages/auth/Login";
 import Home from "../pages/Home";
+import Batches from "../pages/Batches";
 import StudentDashboard from "../pages/student/Dashboard";
 import NotFound from "../pages/errors/NotFound";
 import Students from "../pages/Students";
@@ -13,6 +14,7 @@ import LiveClasses from "../pages/LiveClasses";
 import AIStudio from "../pages/AIStudio";
 import Analytics from "../pages/Analytics";
 import Settings from "../pages/Settings";
+import Teachers from "../pages/Teachers";
 export default function AppRoutes() {
   return (
     <BrowserRouter>
@@ -35,12 +37,14 @@ export default function AppRoutes() {
 <Route path="/admin/students" element={<Students />} />
 <Route path="/admin/subjects" element={<Subjects />} />
 <Route path="/admin/notes" element={<Notes />} />
+<Route path="/admin/batches" element={<Batches />} />
 <Route path="/admin/assignments" element={<Assignments />} />
 <Route path="/admin/exams" element={<Exams />} />
 <Route path="/admin/live-classes" element={<LiveClasses />} />
 <Route path="/admin/ai-studio" element={<AIStudio />} />
 <Route path="/admin/analytics" element={<Analytics />} />
 <Route path="/admin/settings" element={<Settings />} />
+<Route path="/admin/teachers" element={<Teachers />} />
       </Routes>
     </BrowserRouter>
   );
