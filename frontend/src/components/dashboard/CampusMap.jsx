@@ -1,97 +1,98 @@
-import React from "react";
+import campusMap from "../../assets/campus/campus-map.png";
+
+import CampusBuildings from "./CampusBuildings";
+import CampusPeople from "./CampusPeople";
+import BuildingLabel from "./BuildingLabel";
+
+import campusLayout from "../../data/campusLayout";
+
 import {
-  Users,
+  LibraryBig,
+  BrainCircuit,
   GraduationCap,
-  BookOpen,
-  Layers3,
-  NotebookPen,
-  ClipboardCheck,
+  Users,
+  ClipboardList,
+  FileCheck2,
   Video,
-  Bot,
+  BarChart3,
+  ShieldCheck,
 } from "lucide-react";
 
-import CampusBuilding from "./CampusBuilding";
-
-const modules = [
-  {
-    title: "Students",
-    subtitle: "Manage all students",
-    icon: Users,
-    gradient: "from-blue-500/10 to-cyan-400/10",
-  },
-  {
-    title: "Teachers",
-    subtitle: "Faculty management",
-    icon: GraduationCap,
-    gradient: "from-green-500/10 to-emerald-400/10",
-  },
-  {
-    title: "Subjects",
-    subtitle: "Academic subjects",
-    icon: BookOpen,
-    gradient: "from-violet-500/10 to-fuchsia-400/10",
-  },
-  {
-    title: "Batches",
-    subtitle: "Organize classes",
-    icon: Layers3,
-    gradient: "from-orange-500/10 to-yellow-300/10",
-  },
-  {
-    title: "Notes",
-    subtitle: "Study materials",
-    icon: NotebookPen,
-    gradient: "from-pink-500/10 to-rose-300/10",
-  },
-  {
-    title: "Exams",
-    subtitle: "Assessments",
-    icon: ClipboardCheck,
-    gradient: "from-red-500/10 to-orange-300/10",
-  },
-  {
-    title: "Live Classes",
-    subtitle: "Online learning",
-    icon: Video,
-    gradient: "from-indigo-500/10 to-blue-300/10",
-  },
-  {
-    title: "AI Studio",
-    subtitle: "AI-powered learning",
-    icon: Bot,
-    gradient: "from-teal-500/10 to-cyan-300/10",
-  },
-];
+const icons = {
+  administration: ShieldCheck,
+  analytics: BarChart3,
+  ai: BrainCircuit,
+  library: LibraryBig,
+  faculty: GraduationCap,
+  live: Video,
+  exams: FileCheck2,
+  students: Users,
+  assignments: ClipboardList,
+};
 
 export default function CampusMap() {
   return (
-    <section className="mt-12">
+    <section
+      className="
+        relative
+        w-full
+        overflow-hidden
+        rounded-[40px]
+        bg-white
+        shadow-2xl
+      "
+    >
+      {/* =====================================================
+          CAMPUS GROUND
+      ====================================================== */}
 
-      <div className="mb-8">
+      <img
+        src={campusMap}
+        alt="ACASH Digital Campus"
+        draggable={false}
+        className="
+          block
+          w-full
+          h-auto
+          select-none
+          pointer-events-none
+        "
+      />
 
-        <h2 className="text-3xl font-bold">
-          Digital Campus
-        </h2>
+      {/* =====================================================
+          BUILDINGS
+      ====================================================== */}
 
-        <p className="text-gray-500 mt-2">
-          Access every module from one intelligent workspace.
-        </p>
+      <CampusBuildings />
 
-      </div>
+      {/* =====================================================
+          CAMPUS PEOPLE / AVATARS
+      ====================================================== */}
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-8">
+      <CampusPeople />
 
-        {modules.map((module) => (
+      {/* =====================================================
+          BUILDING LABELS
+          Read positions from campusLayout.js
+      ====================================================== */}
 
-          <CampusBuilding
-            key={module.title}
-            {...module}
+      {Object.entries(campusLayout).map(([key, building]) => {
+        const Icon = icons[key];
+
+        if (!Icon) return null;
+
+        return (
+          <BuildingLabel
+            key={key}
+            title={building.title}
+            subtitle={building.subtitle}
+            icon={Icon}
+            route={building.route}
+            top={building.label.top}
+            left={building.label.left}
           />
-
-        ))}
-
-      </div>
-
+        );
+      })}
     </section>
   );
 }
