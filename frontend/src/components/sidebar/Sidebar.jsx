@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   House,
   Users,
@@ -13,7 +13,9 @@ import {
   ChartColumn,
   Settings,
   ShieldCheck,
+  LogOut,
 } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
 
 const menuItems = [
   { name: "Dashboard", icon: House, path: "/admin/dashboard" },
@@ -31,6 +33,16 @@ const menuItems = [
 ];
 
 export default function Sidebar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const initial = user?.name?.charAt(0)?.toUpperCase() || "A";
+
   return (
     <aside
       className="
@@ -149,7 +161,7 @@ export default function Sidebar() {
 
       {/* Bottom Profile */}
 
-      <div className="border-t border-slate-100 p-5">
+      <div className="border-t border-slate-100 p-5 space-y-2">
 
         <div className="rounded-2xl bg-gradient-to-r from-[#008388] to-cyan-500 p-4 text-white">
 
@@ -168,17 +180,17 @@ export default function Sidebar() {
                 justify-center
               "
             >
-              A
+              {initial}
             </div>
 
-            <div>
+            <div className="min-w-0">
 
-              <p className="font-bold">
-                Admin
+              <p className="font-bold truncate">
+                {user?.name || "Admin"}
               </p>
 
-              <p className="text-sm text-white/80">
-                ACASH Tuition
+              <p className="text-sm text-white/80 truncate">
+                {user?.email || "ACASH Tuition"}
               </p>
 
             </div>
@@ -186,6 +198,29 @@ export default function Sidebar() {
           </div>
 
         </div>
+
+        <button
+          onClick={handleLogout}
+          className="
+            w-full
+            flex
+            items-center
+            justify-center
+            gap-2
+            rounded-2xl
+            px-4
+            py-3
+            text-sm
+            font-semibold
+            text-slate-500
+            hover:bg-red-50
+            hover:text-red-500
+            transition-colors
+          "
+        >
+          <LogOut size={16} />
+          Log Out
+        </button>
 
       </div>
 

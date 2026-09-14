@@ -1,46 +1,44 @@
-import { useState } from "react";
-
-const STORAGE_KEY = "acash_batches";
+import { useEffect, useState } from "react";
+import { batchesApi } from "../services/api";
+import { useAuth } from "./useAuth";
 
 export default function useBatches() {
-  const [batches, setBatches] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  });
+  const { token } = useAuth();
+  const [batches, setBatches] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const save = (updated) => {
-    setBatches(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  useEffect(() => {
+    if (!token) return;
+
+    batchesApi
+      .list(token)
+      .then(setBatches)
+      .catch((err) => console.error("Failed to load batches:", err))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const addBatch = async (batch) => {
+    const created = await batchesApi.create(token, batch);
+    setBatches((prev) => [created, ...prev]);
+    return created;
   };
 
-  const addBatch = (batch) => {
-    const updated = [
-      ...batches,
-      {
-        id: crypto.randomUUID(),
-        ...batch,
-      },
-    ];
-
-    save(updated);
-  };
-
-  const editBatch = (updatedBatch) => {
-    const updated = batches.map((batch) =>
-      batch.id === updatedBatch.id ? updatedBatch : batch
+  const editBatch = async (updatedBatch) => {
+    const saved = await batchesApi.update(token, updatedBatch.id, updatedBatch);
+    setBatches((prev) =>
+      prev.map((batch) => (batch.id === saved.id ? saved : batch))
     );
-
-    save(updated);
+    return saved;
   };
 
-  const deleteBatch = (id) => {
-    const updated = batches.filter((batch) => batch.id !== id);
-
-    save(updated);
+  const deleteBatch = async (id) => {
+    await batchesApi.remove(token, id);
+    setBatches((prev) => prev.filter((batch) => batch.id !== id));
   };
 
   return {
     batches,
+    loading,
     addBatch,
     editBatch,
     deleteBatch,

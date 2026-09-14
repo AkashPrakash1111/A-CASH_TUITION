@@ -1,49 +1,44 @@
 import { useEffect, useState } from "react";
-import initialTeachers from "../data/teachers";
+import { teachersApi } from "../services/api";
+import { useAuth } from "./useAuth";
 
 export default function useTeachers() {
-  const [teachers, setTeachers] = useState(() => {
-    const saved = localStorage.getItem("teachers");
-
-    if (saved) {
-      return JSON.parse(saved);
-    }
-
-    return initialTeachers;
-  });
+  const { token } = useAuth();
+  const [teachers, setTeachers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem("teachers", JSON.stringify(teachers));
-  }, [teachers]);
+    if (!token) return;
 
-  const addTeacher = (teacher) => {
-    setTeachers((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        ...teacher,
-      },
-    ]);
+    teachersApi
+      .list(token)
+      .then(setTeachers)
+      .catch((err) => console.error("Failed to load teachers:", err))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const addTeacher = async (teacher) => {
+    const created = await teachersApi.create(token, teacher);
+    setTeachers((prev) => [created, ...prev]);
+    return created;
   };
 
-  const editTeacher = (updatedTeacher) => {
+  const editTeacher = async (updatedTeacher) => {
+    const saved = await teachersApi.update(token, updatedTeacher.id, updatedTeacher);
     setTeachers((prev) =>
-      prev.map((teacher) =>
-        teacher.id === updatedTeacher.id
-          ? updatedTeacher
-          : teacher
-      )
+      prev.map((teacher) => (teacher.id === saved.id ? saved : teacher))
     );
+    return saved;
   };
 
-  const deleteTeacher = (id) => {
-    setTeachers((prev) =>
-      prev.filter((teacher) => teacher.id !== id)
-    );
+  const deleteTeacher = async (id) => {
+    await teachersApi.remove(token, id);
+    setTeachers((prev) => prev.filter((teacher) => teacher.id !== id));
   };
 
   return {
     teachers,
+    loading,
     addTeacher,
     editTeacher,
     deleteTeacher,

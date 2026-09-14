@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import Input from "../ui/Input";
 import Button from "../ui/Button";
 
@@ -7,6 +7,7 @@ export default function StudentModal({
   onClose,
   onSave,
   initialData,
+  saving = false,
 }) {
   const emptyForm = {
     name: "",
@@ -17,6 +18,8 @@ export default function StudentModal({
     parent: "",
     phone: "",
     status: "Active",
+    email: "",
+    password: "",
   };
 
   const [formData, setFormData] = useState(emptyForm);
@@ -45,6 +48,17 @@ export default function StudentModal({
     if (!formData.className.trim()) {
       alert("Class is required.");
       return;
+    }
+
+    if (!initialData) {
+      if (!formData.email.trim()) {
+        alert("Student email is required to create their login.");
+        return;
+      }
+      if (!formData.password || formData.password.length < 6) {
+        alert("Password must be at least 6 characters.");
+        return;
+      }
     }
 
     onSave(formData);
@@ -120,6 +134,28 @@ export default function StudentModal({
             />
           </div>
 
+          {!initialData && (
+            <>
+              <Input
+                label="Student Email (for login)"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="student@example.com"
+              />
+
+              <Input
+                label="Login Password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="At least 6 characters"
+              />
+            </>
+          )}
+
           <Input
             label="Parent Name"
             name="parent"
@@ -165,8 +201,9 @@ export default function StudentModal({
 
           <Button
             onClick={handleSubmit}
+            disabled={saving}
           >
-            {initialData ? "Update Student" : "Save Student"}
+            {saving ? "Saving..." : initialData ? "Update Student" : "Save Student"}
           </Button>
 
         </div>

@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
 
-import AdminLayout from "../layouts/AdminLayout";
-
 import PageHeader from "../components/ui/PageHeader";
 import SearchBar from "../components/ui/SearchBar";
 
@@ -65,7 +63,7 @@ export default function Notes() {
   ]);
 
   return (
-    <AdminLayout>
+    <>
 
       <div className="p-8">
 
@@ -138,6 +136,6 @@ export default function Notes() {
 
       </div>
 
-    </AdminLayout>
+    </>
   );
 }

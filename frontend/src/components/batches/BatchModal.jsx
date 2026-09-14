@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
+import DayTimePicker from "./DayTimePicker";
 
 const emptyBatch = {
   batchName: "",
@@ -91,19 +92,18 @@ export default function BatchModal({
             onChange={handleChange}
           />
 
-          <Input
-            label="Days"
-            name="days"
-            value={formData.days}
-            onChange={handleChange}
-          />
-
-          <Input
-            label="Time"
-            name="time"
-            value={formData.time}
-            onChange={handleChange}
-          />
+          <div className="col-span-2">
+            <DayTimePicker
+              days={formData.days}
+              time={formData.time}
+              onDaysChange={(days) =>
+                setFormData((prev) => ({ ...prev, days }))
+              }
+              onTimeChange={(time) =>
+                setFormData((prev) => ({ ...prev, time }))
+              }
+            />
+          </div>
 
           <Input
             label="Capacity"

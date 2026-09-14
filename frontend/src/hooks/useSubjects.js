@@ -1,46 +1,44 @@
 import { useEffect, useState } from "react";
-import initialSubjects from "../data/subjects";
+import { subjectsApi } from "../services/api";
+import { useAuth } from "./useAuth";
 
 export default function useSubjects() {
-  const [subjects, setSubjects] = useState(() => {
-    const savedSubjects = localStorage.getItem("subjects");
-
-    if (savedSubjects) {
-      return JSON.parse(savedSubjects);
-    }
-
-    return initialSubjects;
-  });
+  const { token } = useAuth();
+  const [subjects, setSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem("subjects", JSON.stringify(subjects));
-  }, [subjects]);
+    if (!token) return;
 
-  const addSubject = (subject) => {
-    const newSubject = {
-      id: Date.now(),
-      ...subject,
-    };
+    subjectsApi
+      .list(token)
+      .then(setSubjects)
+      .catch((err) => console.error("Failed to load subjects:", err))
+      .finally(() => setLoading(false));
+  }, [token]);
 
-    setSubjects((prev) => [...prev, newSubject]);
+  const addSubject = async (subject) => {
+    const created = await subjectsApi.create(token, subject);
+    setSubjects((prev) => [created, ...prev]);
+    return created;
   };
 
-  const editSubject = (updatedSubject) => {
+  const editSubject = async (updatedSubject) => {
+    const saved = await subjectsApi.update(token, updatedSubject.id, updatedSubject);
     setSubjects((prev) =>
-      prev.map((subject) =>
-        subject.id === updatedSubject.id ? updatedSubject : subject
-      )
+      prev.map((subject) => (subject.id === saved.id ? saved : subject))
     );
+    return saved;
   };
 
-  const deleteSubject = (id) => {
-    setSubjects((prev) =>
-      prev.filter((subject) => subject.id !== id)
-    );
+  const deleteSubject = async (id) => {
+    await subjectsApi.remove(token, id);
+    setSubjects((prev) => prev.filter((subject) => subject.id !== id));
   };
 
   return {
     subjects,
+    loading,
     addSubject,
     editSubject,
     deleteSubject,

@@ -37,11 +37,11 @@ export default function HeroBanner() {
 
       <div className="absolute bottom-0 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-white/5 blur-3xl" />
 
-      <div className="relative z-10 grid gap-10 lg:grid-cols-2 items-center">
+      <div className="relative z-10 grid gap-10 lg:grid-cols-2 items-stretch">
 
         {/* Left */}
 
-        <div>
+        <div className="flex flex-col justify-center">
 
           <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur-md">
 
@@ -94,11 +94,11 @@ export default function HeroBanner() {
 
         {/* Right */}
 
-        <div className="space-y-6">
+        <div className="flex flex-col justify-between gap-6 h-full">
 
           {/* AI Card */}
 
-          <div className="rounded-[28px] bg-white/15 backdrop-blur-xl border border-white/20 p-6">
+          <div className="flex-1 rounded-[28px] bg-white/15 backdrop-blur-xl border border-white/20 p-6 flex flex-col justify-center">
 
             <div className="flex items-center gap-4">
 
@@ -148,7 +148,7 @@ export default function HeroBanner() {
 
           {/* Community */}
 
-          <div className="rounded-[28px] bg-white/15 backdrop-blur-xl border border-white/20 p-6">
+          <div className="flex-1 rounded-[28px] bg-white/15 backdrop-blur-xl border border-white/20 p-6 flex flex-col justify-center">
 
             <h3 className="font-bold text-lg">
 
