@@ -12,10 +12,12 @@ import FacultyInsights from "../components/teachers/FacultyInsights";
 
 import useTeachers from "../hooks/useTeachers";
 import useBatches from "../hooks/useBatches";
+import useSubjects from "../hooks/useSubjects";
 
 export default function Teachers() {
   const { teachers, addTeacher, editTeacher, deleteTeacher } = useTeachers();
   const { batches } = useBatches();
+  const { subjects } = useSubjects();
 
   const [search, setSearch] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
@@ -235,6 +237,8 @@ export default function Teachers() {
         onClose={closeFormModal}
         onSave={handleSave}
         teacher={editingTeacher}
+        subjects={subjects}
+        batches={batches}
       />
 
       <TeacherDetailModal

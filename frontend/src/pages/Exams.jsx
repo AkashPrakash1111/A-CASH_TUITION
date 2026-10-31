@@ -14,6 +14,7 @@ import StatsCard from "../components/ui/StatsCard";
 import ClassSelector from "../components/notes/ClassSelector";
 import ExamCard from "../components/exams/ExamCard";
 import ExamFormModal from "../components/exams/ExamFormModal";
+import ExamSubmissionsDrawer from "../components/exams/ExamSubmissionsDrawer";
 
 import useExams from "../hooks/useExams";
 import useBatches from "../hooks/useBatches";
@@ -25,7 +26,6 @@ export default function Exams() {
     addExam,
     editExam,
     deleteExam,
-    togglePublished,
     getStatus,
   } = useExams();
 
@@ -38,13 +38,14 @@ export default function Exams() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExam, setEditingExam] = useState(null);
+  const [reviewExam, setReviewExam] = useState(null);
 
   const classList = useMemo(() => {
     return [...new Set(batches.map((b) => b.className))];
   }, [batches]);
 
   const subjectList = useMemo(() => {
-    return subjects.map((s) => s.subjectName);
+    return subjects.map((s) => s.name || s.subjectName || "").filter(Boolean);
   }, [subjects]);
 
   const filteredExams = useMemo(() => {
@@ -201,7 +202,7 @@ export default function Exams() {
                   status={getStatus(exam)}
                   onEdit={openEditModal}
                   onDelete={handleDelete}
-                  onTogglePublished={togglePublished}
+                  onViewSubmissions={setReviewExam}
                 />
               ))}
             </div>
@@ -219,6 +220,10 @@ export default function Exams() {
         classes={classList}
         subjects={subjectList}
       />
+
+      {reviewExam && (
+        <ExamSubmissionsDrawer exam={reviewExam} onClose={() => setReviewExam(null)} />
+      )}
 
     </div>
   );

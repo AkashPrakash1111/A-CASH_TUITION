@@ -162,5 +162,44 @@ export const campusLayout = {
   },
 };
 
+export function getBuildingRoute(key, role = "admin") {
+  const routes = {
+    admin: {
+      administration: "/admin/settings",
+      analytics: "/admin/analytics",
+      ai: "/admin/ai-studio",
+      library: "/admin/notes",
+      faculty: "/admin/teachers",
+      live: "/admin/live-classes",
+      exams: "/admin/exams",
+      students: "/admin/students",
+      assignments: "/admin/assignments",
+    },
+    student: {
+      administration: "/student/settings",
+      analytics: "/student/progress",
+      ai: "/student/ai-studio",
+      library: "/student/notes",
+      faculty: "/student/teachers",
+      live: "/student/live-classes",
+      exams: "/student/exams",
+      students: "/student/friends",
+      assignments: "/student/assignments",
+    },
+    teacher: {
+      administration: "/teacher/settings",
+      analytics: "/teacher/analytics",
+      ai: "/teacher/ai-studio",
+      library: "/teacher/notes",
+      faculty: "/teacher/subjects",
+      live: "/teacher/live-classes",
+      exams: "/teacher/exams",
+      students: "/teacher/students",
+      assignments: "/teacher/assignments",
+    },
+  };
+  return routes[role]?.[key] || routes.admin[key] || "/admin/dashboard";
+}
+
 // Support both import styles.
 export default campusLayout;

@@ -8,6 +8,7 @@ import StatsCard from "../components/ui/StatsCard";
 import ClassSelector from "../components/notes/ClassSelector";
 import AssignmentCard from "../components/assignments/AssignmentCard";
 import AssignmentFormModal from "../components/assignments/AssignmentFormModal";
+import SubmissionsDrawer from "../components/assignments/SubmissionsDrawer";
 
 import useAssignments from "../hooks/useAssignments";
 import useBatches from "../hooks/useBatches";
@@ -20,6 +21,7 @@ export default function Assignments() {
     editAssignment,
     deleteAssignment,
     getStatus,
+    refreshAssignments,
   } = useAssignments();
 
   const { batches } = useBatches();
@@ -31,13 +33,14 @@ export default function Assignments() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
+  const [activeGradingAssignment, setActiveGradingAssignment] = useState(null);
 
   const classList = useMemo(() => {
     return [...new Set(batches.map((b) => b.className))];
   }, [batches]);
 
   const subjectList = useMemo(() => {
-    return subjects.map((s) => s.subjectName);
+    return subjects.map((s) => s.name || s.subjectName || "").filter(Boolean);
   }, [subjects]);
 
   const filteredAssignments = useMemo(() => {
@@ -83,11 +86,12 @@ export default function Assignments() {
     setIsModalOpen(false);
   };
 
-  const handleSave = (data) => {
+  // Throws on failure so the form can show the reason and stay open
+  const handleSave = async (data) => {
     if (editingAssignment) {
-      editAssignment({ ...editingAssignment, ...data });
+      await editAssignment({ ...editingAssignment, ...data });
     } else {
-      addAssignment(data);
+      await addAssignment(data);
     }
     closeModal();
   };
@@ -195,6 +199,7 @@ export default function Assignments() {
                   status={getStatus(assignment)}
                   onEdit={openEditModal}
                   onDelete={handleDelete}
+                  onViewSubmissions={setActiveGradingAssignment}
                 />
               ))}
             </div>
@@ -204,14 +209,25 @@ export default function Assignments() {
 
       </div>
 
-      <AssignmentFormModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        onSave={handleSave}
-        assignment={editingAssignment}
-        classes={classList}
-        subjects={subjectList}
-      />
+      {isModalOpen && (
+        <AssignmentFormModal
+          onClose={closeModal}
+          onSave={handleSave}
+          assignment={editingAssignment}
+          classes={classList}
+          subjects={subjectList}
+          batches={batches}
+        />
+      )}
+
+      {activeGradingAssignment && (
+        <SubmissionsDrawer
+          key={activeGradingAssignment.id}
+          assignment={activeGradingAssignment}
+          onClose={() => setActiveGradingAssignment(null)}
+          onGraded={refreshAssignments}
+        />
+      )}
 
     </div>
   );

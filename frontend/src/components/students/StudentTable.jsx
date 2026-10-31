@@ -1,5 +1,18 @@
 import { Pencil, Trash2, Users } from "lucide-react";
 import { getMascotFor } from "./mascotAvatars";
+import { buildAvatarUrl, getDefaultAvatarConfig } from "../avatar/dicebearOptions";
+
+function getStudentAvatarUrl(student) {
+  if (student.avatar_config) {
+    try {
+      const cfg = JSON.parse(student.avatar_config);
+      return buildAvatarUrl(cfg);
+    } catch {
+      // fall back
+    }
+  }
+  return `https://api.dicebear.com/10.x/adventurer/svg?seed=${encodeURIComponent(student.name || "student")}`;
+}
 
 export default function StudentTable({ students, onEdit, onDelete }) {
   return (
@@ -41,7 +54,7 @@ export default function StudentTable({ students, onEdit, onDelete }) {
             </tr>
           ) : (
             students.map((student) => {
-              const mascot = getMascotFor(student.name);
+              const avatarUrl = getStudentAvatarUrl(student);
 
               return (
                 <tr
@@ -50,16 +63,16 @@ export default function StudentTable({ students, onEdit, onDelete }) {
                 >
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div
-                        className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
-                        style={{ backgroundColor: mascot.bg }}
-                      >
-                        <img src={mascot.image} alt="" className="w-9 h-9 object-contain" />
+                      <div className="w-11 h-11 rounded-2xl bg-[#F4F8FC] border border-slate-100 p-1 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+                        <img src={avatarUrl} alt={student.name} className="w-full h-full object-contain" />
                       </div>
                       <div>
                         <p className="font-semibold text-slate-800">{student.name}</p>
+                        {student.email && (
+                          <p className="text-xs text-slate-400">{student.email}</p>
+                        )}
                         {student.parent && (
-                          <p className="text-xs text-slate-400">Parent: {student.parent}</p>
+                          <p className="text-[11px] text-slate-400">Parent: {student.parent}</p>
                         )}
                       </div>
                     </div>

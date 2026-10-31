@@ -5,13 +5,13 @@ from database.db import get_db
 from models.academic import Batch
 from models.user import UserRole
 from schemas.academic import BatchCreate, BatchOut
-from utils.deps import require_role
+from utils.deps import get_current_user, require_role
 
 router = APIRouter(prefix="/batches", tags=["batches"])
 
 
 @router.get("", response_model=list[BatchOut])
-def list_batches(db: Session = Depends(get_db), _admin=Depends(require_role(UserRole.admin))):
+def list_batches(db: Session = Depends(get_db), _user=Depends(get_current_user)):
     return db.query(Batch).order_by(Batch.created_at.desc()).all()
 
 

@@ -14,27 +14,51 @@ import {
   Settings,
   ShieldCheck,
   LogOut,
+  Gift,
+  HeartHandshake,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import { buildAvatarUrl, getDefaultAvatarConfig } from "../avatar/dicebearOptions";
 
-const menuItems = [
-  { name: "Dashboard", icon: House, path: "/admin/dashboard" },
-  { name: "Students", icon: Users, path: "/admin/students" },
-  { name: "Teachers", icon: GraduationCap, path: "/admin/teachers" },
-  { name: "Subjects", icon: BookOpen, path: "/admin/subjects" },
-  { name: "Batches", icon: Layers3, path: "/admin/batches" },
-  { name: "Notes", icon: NotebookPen, path: "/admin/notes" },
-  { name: "Assignments", icon: FileText, path: "/admin/assignments" },
-  { name: "Exams", icon: ClipboardCheck, path: "/admin/exams" },
-  { name: "Live Classes", icon: Video, path: "/admin/live-classes" },
-  { name: "AI Studio", icon: Bot, path: "/admin/ai-studio" },
-  { name: "Analytics", icon: ChartColumn, path: "/admin/analytics" },
-  { name: "Settings", icon: Settings, path: "/admin/settings" },
-];
+function parseAvatar(configStr) {
+  if (!configStr) return getDefaultAvatarConfig();
+  try {
+    return JSON.parse(configStr);
+  } catch {
+    return getDefaultAvatarConfig();
+  }
+}
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const rolePrefix = user?.role === "teacher" ? "/teacher" : "/admin";
+
+  const menuItems = [
+    { name: "Dashboard", icon: House, path: `${rolePrefix}/dashboard` },
+    { name: "Students", icon: Users, path: `${rolePrefix}/students` },
+    ...(user?.role === "admin"
+      ? [{ name: "Teachers", icon: GraduationCap, path: "/admin/teachers" }]
+      : []),
+    { name: "Subjects", icon: BookOpen, path: `${rolePrefix}/subjects` },
+    { name: "Batches", icon: Layers3, path: `${rolePrefix}/batches` },
+    { name: "Notes", icon: NotebookPen, path: `${rolePrefix}/notes` },
+    { name: "Assignments", icon: FileText, path: `${rolePrefix}/assignments` },
+    { name: "Exams", icon: ClipboardCheck, path: `${rolePrefix}/exams` },
+    { name: "Live Classes", icon: Video, path: `${rolePrefix}/live-classes` },
+    { name: "AI Studio", icon: Bot, path: `${rolePrefix}/ai-studio` },
+    { name: "Analytics", icon: ChartColumn, path: `${rolePrefix}/analytics` },
+    ...(user?.role === "admin"
+      ? [{ name: "CASHMART Admin", icon: Gift, path: "/admin/cashmart" }]
+      : []),
+    {
+      name: "Parent Reports",
+      icon: HeartHandshake,
+      path: `${rolePrefix}/parent-analysis`,
+    },
+    { name: "Settings", icon: Settings, path: `${rolePrefix}/settings` },
+  ];
 
   const handleLogout = () => {
     logout();
@@ -42,6 +66,7 @@ export default function Sidebar() {
   };
 
   const initial = user?.name?.charAt(0)?.toUpperCase() || "A";
+  const avatarUrl = buildAvatarUrl(parseAvatar(user?.avatar_config));
 
   return (
     <aside
@@ -58,11 +83,8 @@ export default function Sidebar() {
       "
     >
       {/* Logo */}
-
       <div className="px-7 py-8 border-b border-slate-100">
-
         <div className="flex items-center gap-4">
-
           <div
             className="
               w-14
@@ -80,27 +102,19 @@ export default function Sidebar() {
           >
             <ShieldCheck size={28} />
           </div>
-
           <div>
-
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-800">
               ACASH
             </h1>
-
             <p className="text-sm text-slate-500">
               Tuition Portal
             </p>
-
           </div>
-
         </div>
-
       </div>
 
       {/* Menu */}
-
       <nav className="flex-1 px-5 py-6 space-y-2 overflow-y-auto">
-
         {menuItems.map((item) => {
           const Icon = item.icon;
 
@@ -156,47 +170,46 @@ export default function Sidebar() {
             </NavLink>
           );
         })}
-
       </nav>
 
       {/* Bottom Profile */}
-
       <div className="border-t border-slate-100 p-5 space-y-2">
-
         <div className="rounded-2xl bg-gradient-to-r from-[#008388] to-cyan-500 p-4 text-white">
-
           <div className="flex items-center gap-3">
-
             <div
               className="
                 w-12
                 h-12
-                rounded-full
-                bg-white
-                text-[#008388]
-                font-bold
+                rounded-2xl
+                bg-white/20
+                p-0.5
                 flex
                 items-center
                 justify-center
+                overflow-hidden
+                shadow-sm
               "
             >
-              {initial}
+              <img
+                src={avatarUrl}
+                alt={user?.name || "User Avatar"}
+                className="w-full h-full object-contain rounded-xl"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  e.currentTarget.parentElement.innerText = initial;
+                }}
+              />
             </div>
 
             <div className="min-w-0">
-
               <p className="font-bold truncate">
                 {user?.name || "Admin"}
               </p>
-
               <p className="text-sm text-white/80 truncate">
                 {user?.email || "ACASH Tuition"}
               </p>
-
             </div>
-
           </div>
-
         </div>
 
         <button
@@ -221,9 +234,7 @@ export default function Sidebar() {
           <LogOut size={16} />
           Log Out
         </button>
-
       </div>
-
     </aside>
   );
 }

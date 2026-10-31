@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
+import SearchableSelect from "../ui/SearchableSelect";
 import DayTimePicker from "./DayTimePicker";
 
 const emptyBatch = {
@@ -20,6 +21,8 @@ export default function BatchModal({
   onClose,
   onSave,
   initialData,
+  subjects = [],
+  teachers = [],
 }) {
   const [formData, setFormData] = useState(emptyBatch);
 
@@ -29,44 +32,50 @@ export default function BatchModal({
     } else {
       setFormData(emptyBatch);
     }
-  }, [initialData]);
+  }, [initialData, isOpen]);
 
   if (!isOpen) return null;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
+  const handleSelectChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-
+    if (!formData.batchName.trim()) {
+      alert("Batch name is required.");
+      return;
+    }
     onSave(formData);
-
     setFormData(emptyBatch);
   };
 
+  const subjectOptions = subjects.map((s) => s.name || s.subjectName || s);
+  const teacherOptions = teachers.map((t) => t.name || t);
+
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-
-      <div className="bg-white rounded-3xl w-full max-w-2xl p-8">
-
-        <h2 className="text-2xl font-bold mb-6">
-          {initialData ? "Edit Batch" : "Add Batch"}
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-[32px] w-full max-w-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-150">
+        <h2 className="text-2xl font-extrabold text-slate-800 mb-6">
+          {initialData ? "Edit Batch" : "Create New Batch"}
         </h2>
 
-        <form
-          onSubmit={handleSubmit}
-          className="grid grid-cols-2 gap-5"
-        >
-
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <Input
-            label="Batch Name"
+            label="Batch Name *"
             name="batchName"
+            placeholder="e.g. Class 10 A"
             value={formData.batchName}
             onChange={handleChange}
           />
@@ -74,100 +83,65 @@ export default function BatchModal({
           <Input
             label="Class"
             name="className"
+            placeholder="e.g. Class 10"
             value={formData.className}
             onChange={handleChange}
           />
 
-          <Input
-            label="Subject"
-            name="subject"
+          <SearchableSelect
+            label="Subject (Select or Type)"
+            placeholder="e.g. Physics, Chemistry..."
+            options={subjectOptions}
             value={formData.subject}
-            onChange={handleChange}
+            onChange={(val) => handleSelectChange("subject", val)}
+            allowCustom={true}
           />
 
-          <Input
-            label="Teacher"
-            name="teacher"
+          <SearchableSelect
+            label="Teacher (Select or Type)"
+            placeholder="Assign teacher..."
+            options={teacherOptions}
             value={formData.teacher}
-            onChange={handleChange}
+            onChange={(val) => handleSelectChange("teacher", val)}
+            allowCustom={true}
           />
 
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <DayTimePicker
               days={formData.days}
               time={formData.time}
-              onDaysChange={(days) =>
-                setFormData((prev) => ({ ...prev, days }))
-              }
-              onTimeChange={(time) =>
-                setFormData((prev) => ({ ...prev, time }))
-              }
+              onDaysChange={(days) => setFormData((prev) => ({ ...prev, days }))}
+              onTimeChange={(time) => setFormData((prev) => ({ ...prev, time }))}
             />
           </div>
 
           <Input
             label="Capacity"
             name="capacity"
-            type="number"
+            placeholder="e.g. 30"
             value={formData.capacity}
             onChange={handleChange}
           />
 
           <Input
-            label="Students Enrolled"
+            label="Enrolled"
             name="enrolled"
-            type="number"
+            placeholder="e.g. 15"
             value={formData.enrolled}
             onChange={handleChange}
           />
 
-          <div className="col-span-2">
-
-            <label className="block mb-2 font-medium">
-              Status
-            </label>
-
-            <select
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              className="
-                w-full
-                border
-                border-gray-300
-                rounded-xl
-                px-4
-                py-3
-                focus:outline-none
-                focus:border-[#008388]
-              "
-            >
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
-
-          </div>
-
-          <div className="col-span-2 flex justify-end gap-3 mt-4">
-
-            <Button
-  type="button"
-  variant="secondary"
-  onClick={onClose}
->
-  Cancel
-</Button>
+          <div className="sm:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
 
             <Button type="submit">
               {initialData ? "Update Batch" : "Save Batch"}
             </Button>
-
           </div>
-
         </form>
-
       </div>
-
     </div>
   );
 }

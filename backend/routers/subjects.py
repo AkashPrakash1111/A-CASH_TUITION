@@ -5,13 +5,13 @@ from database.db import get_db
 from models.academic import Subject
 from models.user import UserRole
 from schemas.academic import SubjectCreate, SubjectOut
-from utils.deps import require_role
+from utils.deps import get_current_user, require_role
 
 router = APIRouter(prefix="/subjects", tags=["subjects"])
 
 
 @router.get("", response_model=list[SubjectOut])
-def list_subjects(db: Session = Depends(get_db), _admin=Depends(require_role(UserRole.admin))):
+def list_subjects(db: Session = Depends(get_db), _user=Depends(get_current_user)):
     return db.query(Subject).order_by(Subject.created_at.desc()).all()
 
 

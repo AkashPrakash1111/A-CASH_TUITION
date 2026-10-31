@@ -43,7 +43,7 @@ export default function TeacherCard({
       <div className="flex items-start gap-4">
 
         <div className="relative">
-          <TeacherAvatar name={teacher.name} />
+          <TeacherAvatar name={teacher.name} avatar_config={teacher.avatar_config} />
 
           <span
             className={`

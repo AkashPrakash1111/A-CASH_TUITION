@@ -1,91 +1,79 @@
-import { useEffect, useRef, useState } from "react";
-import { X, UploadCloud, FileText } from "lucide-react";
+import { useState } from "react";
+import { X } from "lucide-react";
 
 import Button from "../ui/Button";
 import Input from "../ui/Input";
+import SearchableSelect from "../ui/SearchableSelect";
+import AttachmentPicker from "./AttachmentPicker";
 
+let counter = 0;
+const withIds = (list = []) =>
+  list.map((a) => ({ id: `kept-${counter++}`, name: a.name, type: a.type, url: a.url }));
+
+// Mounted only while open (the page renders it conditionally), so every open
+// starts from a clean copy of the assignment being edited.
 export default function AssignmentFormModal({
-  isOpen,
   onClose,
   onSave,
   assignment,
   classes = [],
   subjects = [],
+  batches = [],
 }) {
-  const fileInput = useRef(null);
-
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [className, setClassName] = useState("");
-  const [subject, setSubject] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [maxMarks, setMaxMarks] = useState("");
-  const [fileName, setFileName] = useState("");
-  const [errors, setErrors] = useState({});
-
   const isEditing = Boolean(assignment);
 
-  useEffect(() => {
-    if (!isOpen) return;
+  const [title, setTitle] = useState(assignment?.title || "");
+  const [description, setDescription] = useState(assignment?.description || "");
+  const [className, setClassName] = useState(assignment?.className || classes[0] || "");
+  const [batch, setBatch] = useState(assignment?.batch || "");
+  const [subject, setSubject] = useState(assignment?.subject || subjects[0] || "");
+  const [dueDate, setDueDate] = useState(assignment?.dueDate || "");
+  const [maxMarks, setMaxMarks] = useState(assignment?.maxMarks || "");
+  const [attachments, setAttachments] = useState(() => withIds(assignment?.attachments));
+  const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState({});
 
-    setTitle(assignment?.title || "");
-    setDescription(assignment?.description || "");
-    setClassName(assignment?.className || classes[0] || "");
-    setSubject(assignment?.subject || subjects[0] || "");
-    setDueDate(assignment?.dueDate || "");
-    setMaxMarks(assignment?.maxMarks || "");
-    setFileName(assignment?.fileName || "");
-    setErrors({});
-  }, [isOpen, assignment, classes, subjects]);
-
-  if (!isOpen) return null;
-
-  const handleFile = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setFileName(file.name);
-  };
+  // Only batches that belong to the chosen class can be targeted
+  const batchOptions = batches.filter((b) => b.className === className);
 
   const validate = () => {
-    const nextErrors = {};
-
-    if (!title.trim()) nextErrors.title = "Title is required";
-    if (!className) nextErrors.className = "Select a class";
-    if (!subject) nextErrors.subject = "Select a subject";
-    if (!dueDate) nextErrors.dueDate = "Due date is required";
-
-    setErrors(nextErrors);
-
-    return Object.keys(nextErrors).length === 0;
+    const next = {};
+    if (!title.trim()) next.title = "Title is required";
+    if (!className) next.className = "Select a class";
+    if (!subject) next.subject = "Select a subject";
+    if (!dueDate) next.dueDate = "Due date is required";
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
 
-    onSave({
-      id: assignment?.id,
-      title: title.trim(),
-      description: description.trim(),
-      className,
-      subject,
-      dueDate,
-      maxMarks,
-      fileName,
-    });
+    try {
+      setIsSaving(true);
+      await onSave({
+        id: assignment?.id,
+        title: title.trim(),
+        description: description.trim(),
+        className,
+        batch,
+        subject,
+        dueDate,
+        maxMarks,
+        attachments: attachments.map(({ name, type, url }) => ({ name, type, url })),
+      });
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, form: err.message || "Failed to save assignment" }));
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-
-      <div className="bg-white rounded-3xl w-full max-w-2xl p-8 max-h-[90vh] overflow-y-auto">
-
+      <div className="bg-white rounded-3xl w-full max-w-2xl p-8 max-h-[92vh] overflow-y-auto">
         <div className="flex items-start justify-between">
-
           <div>
-            <h2 className="text-3xl font-bold">
-              {isEditing ? "Edit Assignment" : "New Assignment"}
-            </h2>
-
+            <h2 className="text-3xl font-bold">{isEditing ? "Edit Assignment" : "New Assignment"}</h2>
             <p className="text-gray-500 mt-2">
               {isEditing
                 ? "Update the assignment details below."
@@ -94,16 +82,16 @@ export default function AssignmentFormModal({
           </div>
 
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close"
             className="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center"
           >
             <X size={20} />
           </button>
-
         </div>
 
         <div className="mt-8 space-y-6">
-
           <Input
             label="Assignment Title"
             placeholder="e.g. Chapter 4 — Problem Set"
@@ -113,10 +101,7 @@ export default function AssignmentFormModal({
           />
 
           <div>
-            <label className="block mb-2 text-sm font-medium text-gray-700">
-              Description
-            </label>
-
+            <label className="block mb-2 text-sm font-medium text-gray-700">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -126,57 +111,52 @@ export default function AssignmentFormModal({
           </div>
 
           <div className="grid grid-cols-2 gap-6">
+            <SearchableSelect
+              label="Class"
+              placeholder="Select or type class..."
+              options={classes}
+              value={className}
+              onChange={(val) => {
+                setClassName(val);
+                setBatch("");
+              }}
+              error={errors.className}
+              allowCustom={true}
+            />
 
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">
-                Class
-              </label>
+            <SearchableSelect
+              label="Subject"
+              placeholder="Select or type subject..."
+              options={subjects}
+              value={subject}
+              onChange={(val) => setSubject(val)}
+              error={errors.subject}
+              allowCustom={true}
+            />
+          </div>
 
-              <select
-                value={className}
-                onChange={(e) => setClassName(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 outline-none transition focus:border-[#008388] focus:ring-2 focus:ring-[#008388]/20 bg-white"
-              >
-                <option value="">Select class</option>
-                {classes.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-
-              {errors.className && (
-                <p className="mt-1 text-sm text-red-500">{errors.className}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">
-                Subject
-              </label>
-
-              <select
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 outline-none transition focus:border-[#008388] focus:ring-2 focus:ring-[#008388]/20 bg-white"
-              >
-                <option value="">Select subject</option>
-                {subjects.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-
-              {errors.subject && (
-                <p className="mt-1 text-sm text-red-500">{errors.subject}</p>
-              )}
-            </div>
-
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700">Who is this for?</label>
+            <select
+              value={batch}
+              onChange={(e) => setBatch(e.target.value)}
+              disabled={!className}
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 outline-none transition focus:border-[#008388] focus:ring-2 focus:ring-[#008388]/20 disabled:bg-slate-50 disabled:text-slate-400"
+            >
+              <option value="">
+                {className ? `Every batch in Class ${className}` : "Choose a class first"}
+              </option>
+              {batchOptions.map((b) => (
+                <option key={b.id} value={b.batchName}>
+                  Only batch: {b.batchName}
+                  {b.subject ? ` (${b.subject})` : ""}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-xs text-gray-400">Students outside this audience won't see the assignment.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-6">
-
             <Input
               type="date"
               label="Due Date"
@@ -192,57 +172,35 @@ export default function AssignmentFormModal({
               value={maxMarks}
               onChange={(e) => setMaxMarks(e.target.value)}
             />
-
           </div>
 
           <div>
             <label className="block mb-2 text-sm font-medium text-gray-700">
-              Attachment (optional)
+              Attachments (optional)
             </label>
-
-            <button
-              type="button"
-              onClick={() => fileInput.current.click()}
-              className="w-full rounded-2xl border-2 border-dashed border-slate-300 hover:border-[#008388] transition bg-slate-50 px-5 py-5 flex items-center gap-4"
-            >
-              <div className="w-12 h-12 rounded-xl bg-[#EAF8F8] text-[#008388] flex items-center justify-center shrink-0">
-                {fileName ? <FileText size={22} /> : <UploadCloud size={22} />}
-              </div>
-
-              <div className="text-left">
-                <p className="font-semibold">
-                  {fileName || "Click to attach a file"}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  PDF, DOC or image · up to 25 MB
-                </p>
-              </div>
-            </button>
-
-            <input
-              hidden
-              ref={fileInput}
-              type="file"
-              onChange={handleFile}
-            />
+            <p className="mb-3 text-xs text-gray-400">
+              Question papers, diagrams, worksheets, or a voice explanation. Students can open all of these.
+            </p>
+            <AttachmentPicker value={attachments} onChange={setAttachments} disabled={isSaving} />
           </div>
-
         </div>
 
-        <div className="flex justify-end gap-3 mt-10">
+        {errors.form && (
+          <div role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {errors.form}
+          </div>
+        )}
 
-          <Button type="button" variant="secondary" onClick={onClose}>
+        <div className="flex justify-end gap-3 mt-8">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
 
-          <Button onClick={handleSubmit}>
-            {isEditing ? "Save Changes" : "Create Assignment"}
+          <Button onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? "Saving..." : isEditing ? "Save Changes" : "Create Assignment"}
           </Button>
-
         </div>
-
       </div>
-
     </div>
   );
 }

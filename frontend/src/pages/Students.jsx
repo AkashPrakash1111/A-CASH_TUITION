@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Search, Plus, ChevronRight } from "lucide-react";
 import useStudents from "../hooks/useStudents";
+import useBatches from "../hooks/useBatches";
 import { useAuth } from "../hooks/useAuth";
 import { adminApi } from "../services/api";
 import StudentTable from "../components/students/StudentTable";
@@ -18,6 +19,7 @@ export default function Students() {
     deleteStudent,
   } = useStudents();
 
+  const { batches } = useBatches();
   const { token } = useAuth();
 
   const [showModal, setShowModal] = useState(false);
@@ -99,17 +101,14 @@ export default function Students() {
       return;
     }
 
-    const { password, ...rosterData } = studentData;
-
     try {
-      await adminApi.createUser(token, {
-        name: studentData.name,
-        email: studentData.email,
-        password,
-        role: "student",
+      const loginId = (studentData.login_id || studentData.email || "").trim();
+      await addStudent({
+        ...studentData,
+        login_id: loginId,
+        email: loginId,
+        password: studentData.password,
       });
-
-      await addStudent(rosterData);
       setShowModal(false);
       setSelectedStudent(null);
     } catch (err) {
@@ -233,6 +232,7 @@ export default function Students() {
         }}
         onSave={handleSave}
         initialData={selectedStudent}
+        batches={batches}
         saving={saving}
       />
     </div>

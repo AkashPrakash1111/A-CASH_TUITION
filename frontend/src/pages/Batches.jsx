@@ -13,10 +13,14 @@ import WeeklyTimetable from "../components/batches/WeeklyTimetable";
 
 import useBatches from "../hooks/useBatches";
 import useStudents from "../hooks/useStudents";
+import useSubjects from "../hooks/useSubjects";
+import useTeachers from "../hooks/useTeachers";
 
 export default function Batches() {
   const { batches, addBatch, editBatch, deleteBatch } = useBatches();
   const { students } = useStudents();
+  const { subjects } = useSubjects();
+  const { teachers } = useTeachers();
 
   const [search, setSearch] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
@@ -276,6 +280,8 @@ export default function Batches() {
         onClose={closeFormModal}
         onSave={handleSave}
         initialData={editingBatch}
+        subjects={subjects}
+        teachers={teachers}
       />
 
       <BatchDetailModal

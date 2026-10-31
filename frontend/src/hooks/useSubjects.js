@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 import { subjectsApi } from "../services/api";
 import { useAuth } from "./useAuth";
 
+function normalizeSubject(s) {
+  if (!s) return s;
+  const resolved = s.name || s.subjectName || "";
+  return {
+    ...s,
+    name: resolved,
+    subjectName: resolved,
+  };
+}
+
 export default function useSubjects() {
   const { token } = useAuth();
   const [subjects, setSubjects] = useState([]);
@@ -12,23 +22,25 @@ export default function useSubjects() {
 
     subjectsApi
       .list(token)
-      .then(setSubjects)
+      .then((data) => setSubjects(Array.isArray(data) ? data.map(normalizeSubject) : []))
       .catch((err) => console.error("Failed to load subjects:", err))
       .finally(() => setLoading(false));
   }, [token]);
 
   const addSubject = async (subject) => {
     const created = await subjectsApi.create(token, subject);
-    setSubjects((prev) => [created, ...prev]);
-    return created;
+    const normalized = normalizeSubject(created);
+    setSubjects((prev) => [normalized, ...prev]);
+    return normalized;
   };
 
   const editSubject = async (updatedSubject) => {
     const saved = await subjectsApi.update(token, updatedSubject.id, updatedSubject);
+    const normalized = normalizeSubject(saved);
     setSubjects((prev) =>
-      prev.map((subject) => (subject.id === saved.id ? saved : subject))
+      prev.map((subject) => (subject.id === normalized.id ? normalized : subject))
     );
-    return saved;
+    return normalized;
   };
 
   const deleteSubject = async (id) => {

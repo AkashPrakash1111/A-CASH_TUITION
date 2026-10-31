@@ -1,46 +1,35 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from models.user import UserRole
 
 
 class UserCreate(BaseModel):
-    """
-    Payload for public self-registration (POST /auth/register).
-
-    Deliberately has NO `role` field. Earlier versions accepted a role from
-    the request body, which meant anyone could register as role="admin" by
-    hand-crafting the request. The /auth/register endpoint now always
-    creates a `student` account, no matter what — role escalation is only
-    possible through /auth/admin/create-user, which requires an existing
-    admin's token.
-    """
     name: str
-    email: EmailStr
+    email: str
+    username: str | None = None
     password: str
 
 
 class AdminCreateUser(BaseModel):
-    """
-    Payload for POST /auth/admin/create-user — only usable by someone
-    already logged in as admin. Lets the admin explicitly choose the role,
-    e.g. to create a student login (most common) or a second admin account.
-    """
     name: str
-    email: EmailStr
+    email: str
+    username: str | None = None
     password: str
     role: UserRole = UserRole.student
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    # Accepts email address OR alphanumeric Login ID (e.g. student_akash, teacher_physics)
+    email: str
     password: str
 
 
 class UserOut(BaseModel):
     id: int
     name: str
-    email: EmailStr
+    email: str
+    username: str | None = None
     role: UserRole
     is_active: bool
     created_at: datetime

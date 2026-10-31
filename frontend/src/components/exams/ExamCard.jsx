@@ -7,6 +7,7 @@ import {
   Pencil,
   Trash2,
   CheckCircle2,
+  ClipboardCheck,
 } from "lucide-react";
 
 const statusStyle = {
@@ -27,7 +28,7 @@ export default function ExamCard({
   status,
   onEdit,
   onDelete,
-  onTogglePublished,
+  onViewSubmissions,
 }) {
   return (
     <div
@@ -145,19 +146,13 @@ export default function ExamCard({
 
         <div className="flex gap-2">
 
-          {status === "Completed" && (
-            <button
-              onClick={() => onTogglePublished(exam.id)}
-              className={`px-3 h-9 rounded-xl flex items-center gap-1.5 text-xs font-semibold ${
-                exam.resultsPublished
-                  ? "bg-green-50 text-green-700"
-                  : "bg-slate-50 text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <CheckCircle2 size={14} />
-              {exam.resultsPublished ? "Results Published" : "Publish Results"}
-            </button>
-          )}
+          <button
+            onClick={() => onViewSubmissions(exam)}
+            className="px-3 h-9 rounded-xl flex items-center gap-1.5 text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100"
+          >
+            <ClipboardCheck size={14} />
+            Submissions
+          </button>
 
           <button
             onClick={() => onEdit(exam)}

@@ -4,7 +4,8 @@ import CampusBuildings from "./CampusBuildings";
 import CampusPeople from "./CampusPeople";
 import BuildingLabel from "./BuildingLabel";
 
-import campusLayout from "../../data/campusLayout";
+import campusLayout, { getBuildingRoute } from "../../data/campusLayout";
+import { useAuth } from "../../hooks/useAuth";
 
 import {
   LibraryBig,
@@ -31,6 +32,9 @@ const icons = {
 };
 
 export default function CampusMap() {
+  const { user } = useAuth();
+  const role = user?.role || "admin";
+
   return (
     <section
       className="
@@ -87,7 +91,7 @@ export default function CampusMap() {
             title={building.title}
             subtitle={building.subtitle}
             icon={Icon}
-            route={building.route}
+            route={getBuildingRoute(key, role)}
             top={building.label.top}
             left={building.label.left}
           />

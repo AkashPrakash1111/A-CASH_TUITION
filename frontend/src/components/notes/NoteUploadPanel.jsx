@@ -14,23 +14,29 @@ export default function NoteUploadPanel({
   onUpload,
   selectedClass,
   selectedSubject,
+  classes = [],
+  subjects = [],
+  batches = [],
 }) {
   const pdfInput = useRef(null);
   const imageInput = useRef(null);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [uploadData, setUploadData] = useState(null);
+  const [uploadKey, setUploadKey] = useState(0);
 
   const [textNote, setTextNote] = useState("");
 
   const openPreview = (data) => {
     setUploadData(data);
+    setUploadKey((k) => k + 1);
     setPreviewOpen(true);
   };
 
   const handlePDF = (e) => {
     const file = e.target.files[0];
 
+    e.target.value = "";
     if (!file) return;
 
     openPreview({
@@ -43,6 +49,7 @@ export default function NoteUploadPanel({
   const handleImage = (e) => {
     const file = e.target.files[0];
 
+    e.target.value = "";
     if (!file) return;
 
     openPreview({
@@ -292,10 +299,14 @@ export default function NoteUploadPanel({
       </div>
 
       <UploadPreviewModal
+        key={uploadKey}
         isOpen={previewOpen}
         uploadData={uploadData}
         selectedClass={selectedClass}
         selectedSubject={selectedSubject}
+        classes={classes}
+        subjects={subjects}
+        batches={batches}
         onClose={() => setPreviewOpen(false)}
         onPublish={onUpload}
       />

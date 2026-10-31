@@ -1,7 +1,8 @@
-﻿from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from sqlalchemy import or_, func
 from database.db import get_db
 from models.user import User, UserRole
 from utils.security import decode_access_token
@@ -20,11 +21,16 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if payload is None:
         raise credentials_error
 
-    email = payload.get("sub")
-    if email is None:
+    sub = payload.get("sub")
+    if sub is None:
         raise credentials_error
 
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(
+        or_(
+            func.lower(User.email) == str(sub).lower().strip(),
+            func.lower(User.username) == str(sub).lower().strip(),
+        )
+    ).first()
     if user is None or not user.is_active:
         raise credentials_error
 

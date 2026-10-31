@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
-
-import { campusLayout } from "../../data/campusLayout";
+import { useAuth } from "../../hooks/useAuth";
+import { campusLayout, getBuildingRoute } from "../../data/campusLayout";
 
 import library from "../../assets/buildings/library.png";
 import ai from "../../assets/buildings/ai.png";
@@ -26,6 +26,8 @@ const images = {
 
 export default function CampusBuildings() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = user?.role || "admin";
 
   return (
     <>
@@ -84,7 +86,7 @@ export default function CampusBuildings() {
             src={images[key]}
             alt={building.title}
             draggable={false}
-            onClick={() => navigate(building.route)}
+            onClick={() => navigate(getBuildingRoute(key, role))}
             className="
               relative
 

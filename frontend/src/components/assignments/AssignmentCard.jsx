@@ -8,8 +8,11 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { formatDue, summarizeAttachments } from "./assignmentHelpers";
+
 const statusStyle = {
   Active: "bg-green-100 text-green-700",
+  Closed: "bg-slate-200 text-slate-600",
   Overdue: "bg-red-100 text-red-700",
 };
 
@@ -18,6 +21,7 @@ export default function AssignmentCard({
   status,
   onEdit,
   onDelete,
+  onViewSubmissions,
 }) {
   return (
     <div
@@ -77,6 +81,7 @@ export default function AssignmentCard({
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EAF8F8] text-[#008388] text-xs font-medium">
           <GraduationCap size={14} />
           {assignment.className}
+          {assignment.batch ? ` · Batch ${assignment.batch}` : " · All batches"}
         </span>
 
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EEF3FF] text-blue-600 text-xs font-medium">
@@ -92,16 +97,16 @@ export default function AssignmentCard({
 
       </div>
 
-      {/* Attachment */}
+      {/* Attachments */}
 
-      {assignment.fileName && (
+      {assignment.attachments?.length > 0 && (
         <div className="px-6 mt-4">
           <div className="bg-slate-50 rounded-2xl px-4 py-3 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0">
               <Paperclip size={16} />
             </div>
             <p className="text-sm font-medium truncate">
-              {assignment.fileName}
+              {summarizeAttachments(assignment.attachments)}
             </p>
           </div>
         </div>
@@ -117,13 +122,16 @@ export default function AssignmentCard({
 
           <div className="flex items-center gap-1.5 text-sm">
             <Calendar size={16} />
-            <span>Due {assignment.dueDate}</span>
+            <span>Due {formatDue(assignment.dueDate)}</span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-sm">
+          <button
+            onClick={() => onViewSubmissions && onViewSubmissions(assignment)}
+            className="flex items-center gap-1.5 text-sm font-semibold text-[#008388] hover:text-[#006b6f] hover:underline"
+          >
             <Users size={16} />
             <span>{assignment.submissionsCount || 0} submitted</span>
-          </div>
+          </button>
 
         </div>
 

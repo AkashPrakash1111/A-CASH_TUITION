@@ -14,10 +14,25 @@ class StudentCreate(BaseModel):
     phone: str | None = None
     status: str = "Active"
     user_id: int | None = None
+    login_id: str | None = None
+    password: str | None = None
 
 
-class StudentOut(StudentCreate):
+class StudentOut(BaseModel):
     id: int
+    name: str
+    className: str
+    batch: str | None = None
+    gender: str | None = None
+    dob: str | None = None
+    parent: str | None = None
+    phone: str | None = None
+    status: str = "Active"
+    user_id: int | None = None
+    login_id: str | None = None
+    username: str | None = None
+    email: str | None = None
+    avatar_config: str | None = None
     created_at: datetime
 
     class Config:
@@ -29,15 +44,32 @@ class StudentOut(StudentCreate):
 class TeacherCreate(BaseModel):
     name: str
     subject: str | None = None
+    batch: str | None = None
     phone: str | None = None
     email: str | None = None
     qualification: str | None = None
     experience: str | None = None
     status: str = "Active"
+    user_id: int | None = None
+    login_id: str | None = None
+    username: str | None = None
+    password: str | None = None
 
 
-class TeacherOut(TeacherCreate):
+class TeacherOut(BaseModel):
     id: int
+    name: str
+    subject: str | None = None
+    batch: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    qualification: str | None = None
+    experience: str | None = None
+    status: str = "Active"
+    user_id: int | None = None
+    login_id: str | None = None
+    username: str | None = None
+    avatar_config: str | None = None
     created_at: datetime
 
     class Config:

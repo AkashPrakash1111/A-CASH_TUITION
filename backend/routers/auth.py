@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, func
 import json
 
 from database.db import get_db
@@ -13,15 +14,22 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(payload: UserCreate, db: Session = Depends(get_db)):
-    """Public self-registration. Always creates a student account — there is
-    no way to become admin through this endpoint, by design."""
-    existing = db.query(User).filter(User.email == payload.email).first()
+    clean_identifier = (payload.username or payload.email).strip()
+    clean_email = payload.email.strip() if "@" in payload.email else f"{clean_identifier.lower()}@acash.local"
+
+    existing = db.query(User).filter(
+        or_(
+            func.lower(User.email) == clean_email.lower(),
+            func.lower(User.username) == clean_identifier.lower(),
+        )
+    ).first()
     if existing:
-        raise HTTPException(status_code=400, detail="An account with this email already exists")
+        raise HTTPException(status_code=400, detail="An account with this email or username already exists")
 
     user = User(
-        name=payload.name,
-        email=payload.email,
+        name=payload.name.strip(),
+        username=clean_identifier,
+        email=clean_email,
         hashed_password=hash_password(payload.password),
         role=UserRole.student,
     )
@@ -37,19 +45,22 @@ def admin_create_user(
     db: Session = Depends(get_db),
     _admin: User = Depends(require_role(UserRole.admin)),
 ):
-    """
-    Lets an already-logged-in admin create a new account — most commonly a
-    student login, e.g. from the Students page. Requires a valid admin JWT
-    (checked by require_role above) — a student token, or no token, is
-    rejected before this function body even runs.
-    """
-    existing = db.query(User).filter(User.email == payload.email).first()
+    clean_identifier = (payload.username or payload.email).strip()
+    clean_email = payload.email.strip() if "@" in payload.email else f"{clean_identifier.lower()}@acash.local"
+
+    existing = db.query(User).filter(
+        or_(
+            func.lower(User.email) == clean_email.lower(),
+            func.lower(User.username) == clean_identifier.lower(),
+        )
+    ).first()
     if existing:
-        raise HTTPException(status_code=400, detail="An account with this email already exists")
+        raise HTTPException(status_code=400, detail="An account with this email or username already exists")
 
     user = User(
-        name=payload.name,
-        email=payload.email,
+        name=payload.name.strip(),
+        username=clean_identifier,
+        email=clean_email,
         hashed_password=hash_password(payload.password),
         role=payload.role,
     )
@@ -61,17 +72,24 @@ def admin_create_user(
 
 @router.post("/login", response_model=Token)
 def login(payload: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    clean_id = payload.email.strip()
+    user = db.query(User).filter(
+        or_(
+            func.lower(User.email) == clean_id.lower(),
+            func.lower(User.username) == clean_id.lower(),
+        )
+    ).first()
 
     # Same error for "no such user" and "wrong password" on purpose —
-    # this avoids leaking which emails are registered.
+    # this avoids leaking which accounts are registered.
     if not user or not verify_password(payload.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Invalid login ID or password")
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="This account has been disabled")
 
-    token = create_access_token(data={"sub": user.email, "role": user.role.value})
+    token_sub = user.username or user.email
+    token = create_access_token(data={"sub": token_sub, "role": user.role.value})
 
     return Token(access_token=token, user=user)
 
