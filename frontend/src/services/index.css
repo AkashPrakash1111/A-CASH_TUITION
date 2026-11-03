@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   ACASH magic theme
+   Whimsical display font for headings, friendly body font, and a small kit of
+   sparkle / aurora / shimmer utilities. Every animation is switched off for
+   people who ask their device for reduced motion.
+   ========================================================================== */
+
+@theme {
+  --font-display: "Fredoka", "Nunito", ui-rounded, system-ui, sans-serif;
+  --font-sans: "Nunito", ui-rounded, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-magic-violet: #8b5cf6;
+  --color-magic-pink: #f472b6;
+  --color-magic-gold: #fbbf24;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* ------------------------------------------------------------------ keyframes */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.7) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(20deg); }
+}
+
+@keyframes drift {
+  0% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-26px) translateX(10px); }
+  100% { transform: translateY(0) translateX(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes shoot {
+  0% { transform: translate(0, 0) rotate(-35deg); opacity: 0; }
+  4% { opacity: 1; }
+  14% { transform: translate(-380px, 266px) rotate(-35deg); opacity: 0; }
+  100% { transform: translate(-380px, 266px) rotate(-35deg); opacity: 0; }
+}
+
+@keyframes aurora {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.12); }
+}
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: translateY(14px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ------------------------------------------------------------------ utilities */
+
+.animate-float { animation: float 4s ease-in-out infinite; }
+
+/* A four-point sparkle star, drawn with a clip-path so it needs no image. */
+.sparkle {
+  position: absolute;
+  background: currentColor;
+  clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
+  animation: twinkle var(--dur, 4s) ease-in-out var(--delay, 0s) infinite;
+  pointer-events: none;
+}
+
+.shimmer-text {
+  background-image: linear-gradient(90deg, #67e8f9, #c4b5fd, #fbcfe8, #fde68a, #67e8f9);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 6s linear infinite;
+}
+
+.aurora-blob { animation: aurora 14s ease-in-out infinite; }
+.drift { animation: drift var(--dur, 9s) ease-in-out var(--delay, 0s) infinite; }
+
+.shooting-star {
+  position: absolute;
+  width: 90px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #fff);
+  animation: shoot 9s ease-in 2s infinite;
+  pointer-events: none;
+}
+
+/* Cards that glow softly and lift when you point at them. */
+.magic-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.magic-card:hover {
+  transform: translateY(-3px);
+  border-color: rgb(196 181 253 / 0.7);
+  box-shadow: 0 18px 40px -12px rgb(139 92 246 / 0.28), 0 0 0 1px rgb(196 181 253 / 0.35);
+}
+
+.pop-in { animation: pop-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* Tiny sparkle cursor-glow on the primary gradient buttons. */
+.glow-teal { box-shadow: 0 8px 24px -8px rgb(0 131 136 / 0.55); }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .sparkle,
+  .shimmer-text,
+  .aurora-blob,
+  .drift,
+  .shooting-star,
+  .pop-in {
+    animation: none !important;
+  }
+  .sparkle { opacity: 0.6; }
+  .shooting-star { display: none; }
+  .magic-card { transition: none; }
+  .magic-card:hover { transform: none; }
+}

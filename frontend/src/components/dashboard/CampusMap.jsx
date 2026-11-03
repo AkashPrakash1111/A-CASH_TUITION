@@ -1,7 +1,6 @@
 import campusMap from "../../assets/campus/campus-map.png";
 
 import CampusBuildings from "./CampusBuildings";
-import CampusPeople from "./CampusPeople";
 import BuildingLabel from "./BuildingLabel";
 
 import campusLayout, { getBuildingRoute } from "../../data/campusLayout";
@@ -37,7 +36,9 @@ export default function CampusMap() {
 
   return (
     <section
+      style={{ containerType: "inline-size" }}
       className="
+        @container
         relative
         w-full
         overflow-hidden
@@ -68,12 +69,6 @@ export default function CampusMap() {
       ====================================================== */}
 
       <CampusBuildings />
-
-      {/* =====================================================
-          CAMPUS PEOPLE / AVATARS
-      ====================================================== */}
-
-      <CampusPeople />
 
       {/* =====================================================
           BUILDING LABELS

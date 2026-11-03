@@ -1,0 +1,25 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite3
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Uploaded student files
+backend/uploads/assignments/
+backend/uploads/general/
+backend/uploads/notes/
+backend/uploads/submissions/
+
+# Frontend
+node_modules/
+dist/
+
+# Virtual environments
+.venv/
+venv/

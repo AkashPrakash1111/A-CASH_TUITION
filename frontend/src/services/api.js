@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// Dev: talk to the local backend. Production build: same origin (the backend
+// serves the site), unless VITE_API_URL points somewhere else.
+const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 /**
  * Thin fetch wrapper with JWT bearer token and standardized error messaging.

@@ -21,6 +21,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
+import MagicBackdrop from "../components/magic/MagicBackdrop";
 import { buildAvatarUrl, getDefaultAvatarConfig } from "../components/avatar/dicebearOptions";
 
 const studentMenuItems = [
@@ -64,12 +65,7 @@ export default function StudentLayout() {
 
   return (
     <div className="min-h-screen bg-[#F4F8FC] relative text-slate-800">
-      {/* Magical Ambient Gradients */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-cyan-200/40 blur-3xl" />
-        <div className="absolute top-60 right-0 w-[450px] h-[450px] rounded-full bg-violet-200/30 blur-3xl" />
-        <div className="absolute bottom-10 left-1/3 w-[350px] h-[350px] rounded-full bg-teal-100/50 blur-3xl" />
-      </div>
+      <MagicBackdrop />
 
       {/* Mobile Top Bar */}
       <header className="lg:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-5 py-3.5 flex items-center justify-between">

@@ -47,10 +47,14 @@ export default function BuildingLabel({
 
       <button
         onClick={() => navigate(route)}
+        aria-label={`${title} — ${subtitle}`}
+        title={`${title} — ${subtitle}`}
+        style={{ fontSize: "clamp(9px, 1.2cqw, 13px)" }}
         className="
           flex
           items-center
-          gap-3
+          gap-[0.8em]
+          whitespace-nowrap
 
           rounded-full
 
@@ -60,8 +64,8 @@ export default function BuildingLabel({
           bg-white/88
           backdrop-blur-xl
 
-          px-4
-          py-2
+          px-[1.1em]
+          py-[0.55em]
 
           shadow-xl
 
@@ -78,8 +82,8 @@ export default function BuildingLabel({
         <div
           className="
             flex
-            h-9
-            w-9
+            h-[2.6em]
+            w-[2.6em]
             items-center
             justify-center
 
@@ -94,7 +98,7 @@ export default function BuildingLabel({
           "
         >
           <Icon
-            size={18}
+            size="1.4em"
             className="
               text-[#008388]
               transition-all
@@ -106,10 +110,10 @@ export default function BuildingLabel({
 
         {/* Text */}
 
-        <div className="text-left leading-tight">
+        <div className="text-left leading-tight hidden @min-[430px]:block">
           <h3
             className="
-              text-[13px]
+              text-[1em]
               font-semibold
               text-slate-800
             "
@@ -119,8 +123,10 @@ export default function BuildingLabel({
 
           <p
             className="
-              text-[11px]
+              text-[0.85em]
               text-slate-500
+              hidden
+              @min-[560px]:block
             "
           >
             {subtitle}
@@ -130,8 +136,10 @@ export default function BuildingLabel({
         {/* Arrow */}
 
         <ChevronRight
-          size={16}
+          size="1.2em"
           className="
+            hidden
+            @min-[560px]:block
             text-slate-400
 
             opacity-0
@@ -148,8 +156,9 @@ export default function BuildingLabel({
 
         <div
           className="
-            h-2.5
-            w-2.5
+            h-[0.7em]
+            w-[0.7em]
+            shrink-0
 
             rounded-full
 

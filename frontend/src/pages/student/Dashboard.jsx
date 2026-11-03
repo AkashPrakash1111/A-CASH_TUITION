@@ -13,14 +13,15 @@ import {
   Clock,
   Award,
   Flame,
-  Zap,
+  Coins,
   CheckCircle2,
   Calendar,
   ExternalLink,
 } from "lucide-react";
 
 import { useAuth } from "../../hooks/useAuth";
-import { notesApi, assignmentsApi, examsApi, liveClassesApi } from "../../services/api";
+import { notesApi, liveClassesApi, progressApi } from "../../services/api";
+import { dueLabel } from "../../components/progress/progressUtils";
 import { buildAvatarUrl, getDefaultAvatarConfig } from "../../components/avatar/dicebearOptions";
 import CampusMap from "../../components/dashboard/CampusMap";
 
@@ -45,15 +46,77 @@ function parseAvatarConfig(user) {
   }
 }
 
+const HERO_STARS = [
+  { l: "52%", t: "14%", s: 10, c: "text-amber-200", d: 0 },
+  { l: "64%", t: "70%", s: 8, c: "text-white", d: 1.1 },
+  { l: "72%", t: "22%", s: 14, c: "text-violet-200", d: 0.5 },
+  { l: "84%", t: "60%", s: 9, c: "text-pink-200", d: 2 },
+  { l: "90%", t: "16%", s: 11, c: "text-cyan-200", d: 1.6 },
+  { l: "58%", t: "46%", s: 7, c: "text-white", d: 2.4 },
+  { l: "8%", t: "12%", s: 8, c: "text-amber-200", d: 0.8 },
+  { l: "40%", t: "88%", s: 9, c: "text-violet-200", d: 1.9 },
+  { l: "95%", t: "84%", s: 8, c: "text-white", d: 0.3 },
+];
+
+function HeroStat({ icon: Icon, tint, label, value, sub }) {
+  return (
+    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/15 hover:bg-white/15 transition">
+      <div className={`flex items-center gap-2 ${tint} text-xs font-semibold`}>
+        <Icon size={15} /> {label}
+      </div>
+      <p className="text-xl font-bold mt-1 leading-tight">{value}</p>
+      <p className="text-[10px] leading-tight text-slate-300/80 mt-0.5 min-h-[14px]">{sub}</p>
+    </div>
+  );
+}
+
+// A greeting that reflects what is actually true right now.
+function heroLine(p) {
+  if (!p) return "Your floating sanctuary for mastery, inquiry, and peer exploration.";
+  if (p.assignments.overdue) return `${p.assignments.overdue} quest${p.assignments.overdue === 1 ? " is" : "s are"} overdue — a quick win today will set things right.`;
+  if (p.assignments.pending) return `${p.assignments.pending} quest${p.assignments.pending === 1 ? "" : "s"} waiting for you. Explore the campus realms and tackle them one by one.`;
+  return "Every quest is done — wander the campus, revisit your notes, or challenge yourself with an exam.";
+}
+
+// "Live Now" first, then the soonest class that hasn't finished. Teachers don't
+// always flip a class to "Ended", so a class whose end time has passed is
+// treated as over too.
+function classEnd(c) {
+  if (!c.scheduledDate) return null;
+  const end = new Date(`${c.scheduledDate}T${c.endTime || c.startTime || "23:59"}`);
+  return Number.isNaN(end.getTime()) ? null : end;
+}
+
+function pickNextLiveClass(list) {
+  const now = new Date();
+  const status = (c) => (c.status || "").toLowerCase();
+  const live = list.find((c) => status(c) === "live now");
+  if (live) return live;
+  const open = list.filter((c) => {
+    if (status(c) === "ended") return false;
+    const end = classEnd(c);
+    return !end || end >= now;
+  });
+  const key = (c) => `${c.scheduledDate || "9999-12-31"} ${c.startTime || "99:99"}`;
+  return [...open].sort((x, y) => key(x).localeCompare(key(y)))[0] || null;
+}
+
+function liveWhen(c) {
+  const date = c.scheduledDate ? new Date(`${c.scheduledDate}T00:00:00`) : null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const day = !date ? "Today" : date.getTime() === today.getTime() ? "Today"
+    : date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return [day, c.startTime].filter(Boolean).join(" · ");
+}
+
 export default function StudentDashboard() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
 
   const [notes, setNotes] = useState([]);
-  const [assignments, setAssignments] = useState([]);
-  const [exams, setExams] = useState([]);
+  const [progress, setProgress] = useState(null);
   const [liveClasses, setLiveClasses] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [lastSync, setLastSync] = useState(null);
 
   const avatarConfig = parseAvatarConfig(user);
   const avatarUrl = buildAvatarUrl(avatarConfig);
@@ -61,96 +124,118 @@ export default function StudentDashboard() {
   const companionKey = avatarConfig.companion || "cosmic";
   const companion = ELEMENTAL_MASCOTS[companionKey] || ELEMENTAL_MASCOTS.cosmic;
 
+  // One request for everything numeric (streak, balance, pending work, rank),
+  // plus the two lists that live elsewhere. Each part fails on its own, so a
+  // slow endpoint never blanks the rest of the page.
   useEffect(() => {
-    let mounted = true;
-    async function loadData() {
-      if (!token) return;
-      try {
-        const [n, a, e, l] = await Promise.allSettled([
-          notesApi.list(token),
-          assignmentsApi.list(token),
-          examsApi.list(token),
-          liveClassesApi.list(token),
-        ]);
+    if (!token) return undefined;
+    const ctrl = new AbortController();
 
-        if (mounted) {
-          if (n.status === "fulfilled") setNotes(Array.isArray(n.value) ? n.value : []);
-          if (a.status === "fulfilled") setAssignments(Array.isArray(a.value) ? a.value : []);
-          if (e.status === "fulfilled") setExams(Array.isArray(e.value) ? e.value : []);
-          if (l.status === "fulfilled") setLiveClasses(Array.isArray(l.value) ? l.value : []);
-        }
-      } catch (err) {
-        console.error("Failed loading campus signals", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-    loadData();
-    return () => { mounted = false; };
+    const refresh = () =>
+      Promise.allSettled([
+        progressApi.me(token, ctrl.signal),
+        notesApi.list(token),
+        liveClassesApi.list(token),
+      ]).then(([p, n, l]) => {
+        if (ctrl.signal.aborted) return;
+        if (p.status === "fulfilled") setProgress(p.value);
+        if (n.status === "fulfilled") setNotes(Array.isArray(n.value) ? n.value : []);
+        if (l.status === "fulfilled") setLiveClasses(Array.isArray(l.value) ? l.value : []);
+        setLastSync(new Date());
+      });
+
+    // Live updates: load now, then every 30s while the tab is visible, and
+    // again the moment the student comes back to the tab.
+    refresh();
+    const tick = () => { if (!document.hidden) refresh(); };
+    const timer = setInterval(tick, 30000);
+    document.addEventListener("visibilitychange", tick);
+    window.addEventListener("focus", tick);
+    return () => {
+      ctrl.abort();
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+      window.removeEventListener("focus", tick);
+    };
   }, [token]);
 
-  // Compute Active Quests
-  const pendingAssignments = assignments.filter((a) => !a.is_submitted && a.status !== "graded").slice(0, 3);
-  const upcomingExams = exams.filter((e) => e.status !== "ended").slice(0, 2);
-  const nextLive = liveClasses.find((c) => c.status === "live") || liveClasses[0];
+  const upcoming = progress?.upcoming ?? [];
+  const pendingAssignments = upcoming.filter((u) => u.kind === "assignment").slice(0, 3);
+  const upcomingExams = upcoming.filter((u) => u.kind === "exam").slice(0, 2);
+  const nextLive = pickNextLiveClass(liveClasses);
+  const streak = progress?.streak;
+  const cash = progress?.cash;
+  const assignmentStats = progress?.assignments;
+  const dash = "—";
 
   return (
     <div className="space-y-8 pb-12">
       {/* =========================================================================
           HERO BANNER: LIVING ISLAND ENTRANCE
       ========================================================================== */}
-      <section className="relative overflow-hidden rounded-[36px] bg-gradient-to-br from-slate-900 via-[#0B2545] to-[#004D53] p-8 md:p-12 text-white shadow-2xl border border-cyan-500/20">
-        {/* Magic Aura Background Graphic */}
-        <div className="absolute -right-20 -top-24 w-96 h-96 rounded-full bg-cyan-400/20 blur-3xl pointer-events-none" />
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-80 h-80 opacity-25 pointer-events-none hidden lg:block animate-pulse">
+      <section className="relative overflow-hidden rounded-[36px] bg-gradient-to-br from-[#1b1450] via-[#0B2545] to-[#006a70] p-8 md:p-12 text-white shadow-2xl border border-violet-300/20">
+        {/* Night-sky magic: aurora glows, twinkling stars, a passing shooting star */}
+        <div className="absolute -right-20 -top-24 w-96 h-96 rounded-full bg-violet-400/25 blur-3xl pointer-events-none aurora-blob" />
+        <div className="absolute -left-24 -bottom-32 w-96 h-96 rounded-full bg-teal-400/20 blur-3xl pointer-events-none aurora-blob" style={{ animationDelay: "-6s" }} />
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-80 h-80 opacity-30 pointer-events-none hidden lg:block animate-float">
           <img
             src="/magic-campus-portal.png"
-            alt="Magic Portal"
-            className="w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(6,182,212,0.6)]"
+            alt=""
+            className="w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(167,139,250,0.7)]"
             onError={(e) => { e.target.style.display = "none"; }}
           />
         </div>
+        {HERO_STARS.map((st, i) => (
+          <span
+            key={i}
+            className={`sparkle ${st.c}`}
+            style={{ left: st.l, top: st.t, width: st.s, height: st.s, "--delay": `${st.d}s`, "--dur": `${3 + (i % 4)}s` }}
+          />
+        ))}
+        <span className="shooting-star" style={{ right: "18%", top: "10%" }} />
 
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 text-xs font-bold uppercase tracking-wider mb-4">
-            <Sparkles size={14} className="animate-spin" style={{ animationDuration: "6s" }} />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-violet-200/30 text-violet-100 text-xs font-bold uppercase tracking-wider mb-4 backdrop-blur-sm">
+            <Sparkles size={14} className="text-amber-300" />
             Living Campus • Online Realm
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
-            Welcome, <span className="bg-gradient-to-r from-cyan-300 via-teal-200 to-amber-200 bg-clip-text text-transparent">{user?.name || "Seeker"}</span> ✨
+          <h1 className="text-3xl sm:text-5xl font-bold tracking-tight leading-tight">
+            Welcome, <span className="shimmer-text">{user?.name || "Seeker"}</span> ✨
           </h1>
-          <p className="mt-3 text-slate-300 text-sm sm:text-base leading-relaxed">
-            Your floating sanctuary for mastery, inquiry, and peer exploration. Explore the campus realms, finish your daily quests, and sharpen your knowledge.
+          <p className="mt-3 text-slate-200/90 text-sm sm:text-base leading-relaxed">
+            {heroLine(progress)}
           </p>
 
-          {/* Quick Metrics Bar */}
+          {/* Quick metrics: all real, refreshed every 30 seconds */}
           <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-white/10">
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-              <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold">
-                <Flame size={15} /> Streak
-              </div>
-              <p className="text-xl font-bold mt-1">7 Days</p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-              <div className="flex items-center gap-2 text-cyan-300 text-xs font-semibold">
-                <Zap size={15} /> Study XP
-              </div>
-              <p className="text-xl font-bold mt-1">1,450 XP</p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-              <div className="flex items-center gap-2 text-emerald-300 text-xs font-semibold">
-                <CheckCircle2 size={15} /> Quests
-              </div>
-              <p className="text-xl font-bold mt-1">{assignments.length} Total</p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-              <div className="flex items-center gap-2 text-violet-300 text-xs font-semibold">
-                <Award size={15} /> Rank
-              </div>
-              <p className="text-xl font-bold mt-1">Adept Scholar</p>
-            </div>
+            <HeroStat
+              icon={Flame} tint="text-amber-300" label="Streak"
+              value={streak ? `${streak.current} ${streak.current === 1 ? "day" : "days"}` : dash}
+              sub={streak ? (streak.active_today ? "Done for today ✓" : streak.current ? "Submit today to keep it" : "Submit work to start") : ""}
+            />
+            <HeroStat
+              icon={Coins} tint="text-yellow-300" label="CASH"
+              value={cash ? cash.balance.toLocaleString() : dash}
+              sub={cash ? `${cash.earned.toLocaleString()} earned` : ""}
+            />
+            <HeroStat
+              icon={CheckCircle2} tint="text-emerald-300" label="Quests to do"
+              value={assignmentStats ? assignmentStats.pending : dash}
+              sub={assignmentStats ? (assignmentStats.overdue ? `${assignmentStats.overdue} overdue` : assignmentStats.pending ? "Keep going!" : "All caught up ✓") : ""}
+            />
+            <HeroStat
+              icon={Award} tint="text-violet-200" label="Rank"
+              value={cash ? cash.rank : dash}
+              sub={cash ? (cash.next_rank ? `${cash.next_rank_at - cash.balance} CASH to ${cash.next_rank}` : "Highest rank!") : ""}
+            />
           </div>
+          {lastSync && (
+            <p className="mt-3 text-[11px] text-slate-300/70 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live · updated {lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          )}
         </div>
       </section>
 
@@ -163,7 +248,7 @@ export default function StudentDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <Sparkles size={20} className="text-[#008388]" />
+                <Sparkles size={20} className="text-violet-500" />
                 Interactive Floating Campus
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -226,13 +311,13 @@ export default function StudentDashboard() {
           </div>
 
           {/* Next Scheduled / Live Class */}
-          <div className="rounded-[32px] bg-white p-6 border border-slate-100 shadow-lg">
+          <div className="magic-card rounded-[32px] bg-white p-6 border border-slate-100 shadow-lg">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
                 <Video size={16} className="text-[#008388]" />
                 Live Learning Arena
               </h3>
-              {nextLive?.status === "live" && (
+              {(nextLive?.status || "").toLowerCase() === "live now" && (
                 <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
                   <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
                   Live Now
@@ -244,22 +329,22 @@ export default function StudentDashboard() {
               <div className="space-y-3">
                 <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-100">
                   <p className="text-xs font-semibold text-[#008388] uppercase tracking-wider">
-                    {nextLive.subject_name || "General Session"}
+                    {nextLive.subject || "General Session"}
                   </p>
                   <h4 className="font-bold text-slate-800 text-base mt-1">{nextLive.title}</h4>
                   <div className="flex items-center gap-3 mt-3 text-xs text-slate-500">
                     <span className="flex items-center gap-1">
-                      <Clock size={13} /> {nextLive.scheduled_time || "Today"}
+                      <Clock size={13} /> {liveWhen(nextLive)}
                     </span>
                     <span className="flex items-center gap-1">
-                      <GraduationCap size={13} /> {nextLive.teacher_name || "Faculty"}
+                      <GraduationCap size={13} /> {nextLive.teacherName || "Faculty"}
                     </span>
                   </div>
                 </div>
 
-                {nextLive.meeting_link ? (
+                {nextLive.meetingLink ? (
                   <a
-                    href={nextLive.meeting_link}
+                    href={nextLive.meetingLink}
                     target="_blank"
                     rel="noreferrer"
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#008388] to-blue-600 text-white font-semibold text-xs shadow-md hover:shadow-lg transition active:scale-95"
@@ -293,7 +378,7 @@ export default function StudentDashboard() {
       ========================================================================== */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Quest 1: Pending Assignments */}
-        <div className="rounded-[32px] bg-white p-6 border border-slate-100 shadow-lg flex flex-col justify-between">
+        <div className="magic-card pop-in rounded-[32px] bg-white p-6 border border-slate-100 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -302,7 +387,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-sm">Assignment Quests</h3>
-                  <p className="text-[11px] text-slate-500">{pendingAssignments.length} pending submission</p>
+                  <p className="text-[11px] text-slate-500">{assignmentStats ? `${assignmentStats.pending} pending submission${assignmentStats.pending === 1 ? "" : "s"}` : "Loading…"}</p>
                 </div>
               </div>
               <Link to="/student/assignments" className="text-xs font-semibold text-[#008388] hover:underline">
@@ -320,13 +405,11 @@ export default function StudentDashboard() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                        {a.subject_name || "Assignment"}
+                        {a.subject || "Assignment"}
                       </span>
-                      {a.due_date && (
-                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                          <Clock size={11} /> {a.due_date}
-                        </span>
-                      )}
+                      <span className={`text-[11px] flex items-center gap-1 ${a.overdue ? "text-rose-500 font-semibold" : "text-slate-400"}`}>
+                        <Clock size={11} /> {dueLabel(a)}
+                      </span>
                     </div>
                     <p className="font-semibold text-xs text-slate-800 mt-1.5 line-clamp-1">{a.title}</p>
                   </div>
@@ -349,7 +432,7 @@ export default function StudentDashboard() {
         </div>
 
         {/* Quest 2: Upcoming Exams */}
-        <div className="rounded-[32px] bg-white p-6 border border-slate-100 shadow-lg flex flex-col justify-between">
+        <div className="magic-card pop-in rounded-[32px] bg-white p-6 border border-slate-100 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -358,7 +441,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-sm">Exam Trials</h3>
-                  <p className="text-[11px] text-slate-500">{upcomingExams.length} upcoming test(s)</p>
+                  <p className="text-[11px] text-slate-500">{upcomingExams.length} upcoming test{upcomingExams.length === 1 ? "" : "s"}</p>
                 </div>
               </div>
               <Link to="/student/exams" className="text-xs font-semibold text-[#008388] hover:underline">
@@ -376,9 +459,9 @@ export default function StudentDashboard() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
-                        {e.subject_name || "Exam"}
+                        {e.subject || "Exam"}
                       </span>
-                      <span className="text-[11px] text-slate-400 font-medium">{e.duration_minutes || 60} mins</span>
+                      <span className="text-[11px] text-slate-400 font-medium">{dueLabel(e)}</span>
                     </div>
                     <p className="font-semibold text-xs text-slate-800 mt-1.5 line-clamp-1">{e.title}</p>
                   </div>
@@ -401,7 +484,7 @@ export default function StudentDashboard() {
         </div>
 
         {/* Quest 3: Study Notes & Library */}
-        <div className="rounded-[32px] bg-white p-6 border border-slate-100 shadow-lg flex flex-col justify-between">
+        <div className="magic-card pop-in rounded-[32px] bg-white p-6 border border-slate-100 shadow-lg flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -427,9 +510,9 @@ export default function StudentDashboard() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                      {n.subject_name || n.subject || "General"}
+                      {n.subject || "General"}
                     </span>
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold">{n.file_type || "PDF"}</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold">{n.type || "pdf"}</span>
                   </div>
                   <p className="font-semibold text-xs text-slate-800 mt-1.5 line-clamp-1">{n.title}</p>
                 </div>
@@ -461,7 +544,7 @@ export default function StudentDashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
           <Link
             to="/student/notes"
-            className="group p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/50 hover:from-blue-100 hover:to-indigo-100 border border-blue-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+            className="group magic-card p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/50 hover:from-blue-100 hover:to-indigo-100 border border-blue-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600 group-hover:scale-110 transition">
               <BookOpen size={22} />
@@ -472,7 +555,7 @@ export default function StudentDashboard() {
 
           <Link
             to="/student/assignments"
-            className="group p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50/50 hover:from-emerald-100 hover:to-teal-100 border border-emerald-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+            className="group magic-card p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50/50 hover:from-emerald-100 hover:to-teal-100 border border-emerald-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-emerald-600 group-hover:scale-110 transition">
               <ClipboardList size={22} />
@@ -483,7 +566,7 @@ export default function StudentDashboard() {
 
           <Link
             to="/student/exams"
-            className="group p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50/50 hover:from-purple-100 hover:to-pink-100 border border-purple-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+            className="group magic-card p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50/50 hover:from-purple-100 hover:to-pink-100 border border-purple-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-purple-600 group-hover:scale-110 transition">
               <FileCheck2 size={22} />
@@ -494,7 +577,7 @@ export default function StudentDashboard() {
 
           <Link
             to="/student/live-classes"
-            className="group p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-orange-50/50 hover:from-rose-100 hover:to-orange-100 border border-rose-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+            className="group magic-card p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-orange-50/50 hover:from-rose-100 hover:to-orange-100 border border-rose-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-rose-600 group-hover:scale-110 transition">
               <Video size={22} />
@@ -505,7 +588,7 @@ export default function StudentDashboard() {
 
           <Link
             to="/student/friends"
-            className="group p-4 rounded-2xl bg-gradient-to-br from-cyan-50 to-teal-50/50 hover:from-cyan-100 hover:to-teal-100 border border-cyan-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+            className="group magic-card p-4 rounded-2xl bg-gradient-to-br from-cyan-50 to-teal-50/50 hover:from-cyan-100 hover:to-teal-100 border border-cyan-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-cyan-600 group-hover:scale-110 transition">
               <Users size={22} />
@@ -516,7 +599,7 @@ export default function StudentDashboard() {
 
           <Link
             to="/student/ai-studio"
-            className="group p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-yellow-50/50 hover:from-amber-100 hover:to-yellow-100 border border-amber-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+            className="group magic-card p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-yellow-50/50 hover:from-amber-100 hover:to-yellow-100 border border-amber-100/80 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-amber-600 group-hover:scale-110 transition">
               <Bot size={22} />

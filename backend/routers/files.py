@@ -8,10 +8,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from fastapi.responses import Response
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from database.db import get_db
+from utils import blob_store
 from models.academic import Student
 from models.user import User, UserRole
 from utils.security import decode_access_token
@@ -19,7 +21,7 @@ from utils.security import decode_access_token
 router = APIRouter(prefix="/files", tags=["files"])
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-UPLOADS_ROOT = os.path.join(BACKEND_DIR, "uploads")
+UPLOADS_ROOT = os.path.join(os.getenv("DATA_DIR") or BACKEND_DIR, "uploads")
 ALLOWED_CATEGORIES = {"notes", "assignments", "submissions", "exams", "general"}
 ALLOWED_EXTENSIONS = {
     ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".svg", ".txt", ".doc", ".docx",
@@ -115,6 +117,32 @@ def get_mime_type(ext: str) -> str:
     return mimes.get(ext_lower, "application/octet-stream")
 
 
+def _save(category: str, stored_filename: str, content: bytes) -> None:
+    if blob_store.uses_database():
+        blob_store.put(category, stored_filename, content)
+        return
+    category_dir = os.path.join(UPLOADS_ROOT, category)
+    os.makedirs(category_dir, exist_ok=True)
+    with open(os.path.join(category_dir, stored_filename), "wb") as f:
+        f.write(content)
+
+
+def _serve(category: str, safe_name: str, disposition: str, download_name: str | None = None):
+    """Send a stored file: from the database if it is there, else from disk."""
+    mime = get_mime_type(os.path.splitext(safe_name)[1])
+    name = download_name or safe_name
+    headers = {"Content-Disposition": f"{disposition}; filename=\"{name}\""}
+
+    data = blob_store.get(category, safe_name) if blob_store.uses_database() else None
+    if data is not None:
+        return Response(content=data, media_type=mime, headers=headers)
+
+    file_path = os.path.join(UPLOADS_ROOT, category, safe_name)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Requested file was not found")
+    return FileResponse(path=file_path, media_type=mime, headers=headers)
+
+
 class Base64UploadRequest(BaseModel):
     dataUrl: str
     fileName: str
@@ -144,12 +172,8 @@ async def upload_file(
             detail=f"File extension '{ext}' not allowed. Permitted: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
 
-    category_dir = os.path.join(UPLOADS_ROOT, category)
-    os.makedirs(category_dir, exist_ok=True)
-
     unique_prefix = uuid.uuid4().hex[:12]
     stored_filename = f"{unique_prefix}_{orig_name}"
-    target_path = os.path.join(category_dir, stored_filename)
 
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
@@ -158,8 +182,7 @@ async def upload_file(
             detail=f"File exceeds maximum allowed size of {MAX_FILE_SIZE // (1024 * 1024)}MB",
         )
 
-    with open(target_path, "wb") as f:
-        f.write(content)
+    _save(category, stored_filename, content)
 
     view_url = f"/files/view/{category}/{stored_filename}"
     download_url = f"/files/download/{category}/{stored_filename}"
@@ -210,12 +233,8 @@ def upload_base64_file(
     if not orig_name.endswith(ext):
         orig_name += ext
 
-    category_dir = os.path.join(UPLOADS_ROOT, category)
-    os.makedirs(category_dir, exist_ok=True)
-
     unique_prefix = uuid.uuid4().hex[:12]
     stored_filename = f"{unique_prefix}_{orig_name}"
-    target_path = os.path.join(category_dir, stored_filename)
 
     file_bytes = base64.b64decode(encoded)
     if len(file_bytes) > MAX_FILE_SIZE:
@@ -224,8 +243,7 @@ def upload_base64_file(
             detail="File exceeds maximum allowed size",
         )
 
-    with open(target_path, "wb") as f:
-        f.write(file_bytes)
+    _save(category, stored_filename, file_bytes)
 
     view_url = f"/files/view/{category}/{stored_filename}"
     download_url = f"/files/download/{category}/{stored_filename}"
@@ -253,20 +271,7 @@ def view_file(
     if category not in ALLOWED_CATEGORIES:
         raise HTTPException(status_code=404, detail="Category not found")
 
-    safe_name = os.path.basename(filename)
-    file_path = os.path.join(UPLOADS_ROOT, category, safe_name)
-
-    if not os.path.isfile(file_path):
-        raise HTTPException(status_code=404, detail="Requested file was not found")
-
-    ext = os.path.splitext(safe_name)[1].lower()
-    mime = get_mime_type(ext)
-
-    return FileResponse(
-        path=file_path,
-        media_type=mime,
-        headers={"Content-Disposition": f"inline; filename=\"{safe_name}\""},
-    )
+    return _serve(category, os.path.basename(filename), "inline")
 
 
 @router.get("/download/{category}/{filename}")
@@ -283,20 +288,6 @@ def download_file(
         raise HTTPException(status_code=404, detail="Category not found")
 
     safe_name = os.path.basename(filename)
-    file_path = os.path.join(UPLOADS_ROOT, category, safe_name)
-
-    if not os.path.isfile(file_path):
-        raise HTTPException(status_code=404, detail="Requested file was not found")
-
-    ext = os.path.splitext(safe_name)[1].lower()
-    mime = get_mime_type(ext)
-
-    # Strip the 13 char prefix (uuid + underscore) for nice user download filename
+    # Strip the 13 char prefix (uuid + underscore) for a nice download filename
     download_name = safe_name[13:] if len(safe_name) > 13 and safe_name[12] == "_" else safe_name
-
-    return FileResponse(
-        path=file_path,
-        media_type=mime,
-        filename=download_name,
-        headers={"Content-Disposition": f"attachment; filename=\"{download_name}\""},
-    )
+    return _serve(category, safe_name, "attachment", download_name)

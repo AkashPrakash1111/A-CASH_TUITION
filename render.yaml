@@ -1,0 +1,24 @@
+# Render Blueprint (FREE): one web service serving both the API and the website.
+# Free web services have no persistent disk, so all data lives in a free Neon
+# Postgres database (uploads included). You paste its connection string below.
+services:
+  - type: web
+    name: acash-portal
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # Neon connection string, pasted in the Render dashboard
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false          # your first admin login (created on an empty database)
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        value: Admin
+      - key: ANTHROPIC_API_KEY
+        sync: false          # optional: only for AI Studio
+      - key: AI_MODEL
+        value: claude-sonnet-5

@@ -4,8 +4,10 @@ import re
 import uuid
 from typing import Optional, Tuple
 
+from utils import blob_store
+
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-UPLOADS_ROOT = os.path.join(BACKEND_DIR, "uploads")
+UPLOADS_ROOT = os.path.join(os.getenv("DATA_DIR") or BACKEND_DIR, "uploads")
 
 
 def sanitize_filename(filename: str) -> str:
@@ -53,16 +55,17 @@ def save_base64_file(data_url: str, category: str = "general", default_filename:
     if not any(clean_name.lower().endswith(e) for e in [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".webm", ".ogg", ".mp3", ".wav", ".m4a", ".aac"]):
         clean_name += ext
 
-    category_dir = os.path.join(UPLOADS_ROOT, category)
-    os.makedirs(category_dir, exist_ok=True)
-
     unique_prefix = uuid.uuid4().hex[:12]
     stored_filename = f"{unique_prefix}_{clean_name}"
-    target_path = os.path.join(category_dir, stored_filename)
 
     file_bytes = base64.b64decode(encoded)
-    with open(target_path, "wb") as f:
-        f.write(file_bytes)
+    if blob_store.uses_database():
+        blob_store.put(category, stored_filename, file_bytes)
+    else:
+        category_dir = os.path.join(UPLOADS_ROOT, category)
+        os.makedirs(category_dir, exist_ok=True)
+        with open(os.path.join(category_dir, stored_filename), "wb") as f:
+            f.write(file_bytes)
 
     view_url = f"/files/view/{category}/{stored_filename}"
     return view_url, clean_name
