@@ -147,19 +147,36 @@ def health():
 
 
 def bootstrap_admin():
-    """On a brand-new deployment there is nobody to log in as. If ADMIN_EMAIL and
-    ADMIN_PASSWORD are set and no admin exists yet, create one. Harmless otherwise."""
+    """Make sure you can always log in to a fresh deployment.
+
+    * ADMIN_EMAIL + ADMIN_PASSWORD set and no admin exists yet -> create one.
+    * RESET_ADMIN=true -> create that admin, or if the email already exists, set
+      its password to ADMIN_PASSWORD and make sure it is an active admin. Use it
+      once to recover access, then delete RESET_ADMIN.
+    """
     email = (os.getenv("ADMIN_EMAIL") or "").strip().lower()
     password = os.getenv("ADMIN_PASSWORD") or ""
+    reset = (os.getenv("RESET_ADMIN") or "").strip().lower() in ("1", "true", "yes")
     if not email or not password:
         return
+    from sqlalchemy import func
     from database.db import SessionLocal
     from models.user import User, UserRole
     from utils.security import hash_password
 
     db = SessionLocal()
     try:
-        if db.query(User).filter(User.role == UserRole.admin).first():
+        existing = db.query(User).filter(func.lower(User.email) == email).first()
+        if reset and existing:
+            existing.hashed_password = hash_password(password)
+            existing.role = UserRole.admin
+            existing.is_active = True
+            db.commit()
+            print(f"Reset admin account: {email}")
+            return
+        if not reset and db.query(User).filter(User.role == UserRole.admin).first():
+            return
+        if existing:
             return
         db.add(User(
             name=os.getenv("ADMIN_NAME", "Admin"),
@@ -168,7 +185,7 @@ def bootstrap_admin():
             role=UserRole.admin,
         ))
         db.commit()
-        print(f"Created first admin account: {email}")
+        print(f"Created admin account: {email}")
     finally:
         db.close()
 
