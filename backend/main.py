@@ -28,6 +28,7 @@ from models import academic  # noqa: F401
 from models import parent  # noqa: F401
 from models import messaging  # noqa: F401
 from models import rewards  # noqa: F401
+from models import storage  # noqa: F401
 
 load_dotenv()
 
@@ -140,6 +141,63 @@ app.include_router(parents_router.router)
 app.include_router(progress_router.router)
 
 
-@app.get("/")
-def root():
+@app.get("/health")
+def health():
     return {"status": "ok", "service": "ACASH Tuition Portal API"}
+
+
+def bootstrap_admin():
+    """On a brand-new deployment there is nobody to log in as. If ADMIN_EMAIL and
+    ADMIN_PASSWORD are set and no admin exists yet, create one. Harmless otherwise."""
+    email = (os.getenv("ADMIN_EMAIL") or "").strip().lower()
+    password = os.getenv("ADMIN_PASSWORD") or ""
+    if not email or not password:
+        return
+    from database.db import SessionLocal
+    from models.user import User, UserRole
+    from utils.security import hash_password
+
+    db = SessionLocal()
+    try:
+        if db.query(User).filter(User.role == UserRole.admin).first():
+            return
+        db.add(User(
+            name=os.getenv("ADMIN_NAME", "Admin"),
+            email=email,
+            hashed_password=hash_password(password),
+            role=UserRole.admin,
+        ))
+        db.commit()
+        print(f"Created first admin account: {email}")
+    finally:
+        db.close()
+
+
+bootstrap_admin()
+
+
+# ---- Website -----------------------------------------------------------------
+# In production the built React app (frontend/dist) is copied to ./static and
+# served from here, so the site and the API share one address. Routes above
+# win; anything else is the single-page app (so refreshing /student/progress
+# works). Locally, with no ./static folder, this does nothing.
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
+if os.path.isdir(STATIC_DIR):
+    from fastapi import HTTPException
+    from fastapi.responses import FileResponse
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa(full_path: str):
+        candidate = os.path.realpath(os.path.join(STATIC_DIR, full_path))
+        if full_path and candidate.startswith(os.path.realpath(STATIC_DIR) + os.sep) and os.path.isfile(candidate):
+            headers = {"Cache-Control": "public, max-age=31536000, immutable"} if full_path.startswith("assets/") else {}
+            return FileResponse(candidate, headers=headers)
+        # Unknown file-looking paths are real 404s, not the app shell
+        if "." in os.path.basename(full_path):
+            raise HTTPException(status_code=404)
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"), headers={"Cache-Control": "no-cache"})
+else:
+    @app.get("/")
+    def root():
+        return {"status": "ok", "service": "ACASH Tuition Portal API"}
