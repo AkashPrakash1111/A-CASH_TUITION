@@ -16,7 +16,7 @@ from fastapi import HTTPException
 from utils.file_storage import ensure_persistent_file_url
 
 MAX_FILE_BYTES = 25 * 1024 * 1024
-MAX_ATTACHMENTS = 8
+MAX_ATTACHMENTS = 60
 
 KIND_MIMES = {
     "image": {"image/png", "image/jpeg", "image/jpg", "image/webp"},

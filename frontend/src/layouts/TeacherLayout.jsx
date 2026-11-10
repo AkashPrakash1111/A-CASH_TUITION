@@ -16,6 +16,7 @@ import {
   GraduationCap,
   Menu,
   X,
+  Inbox,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { buildAvatarUrl, getDefaultAvatarConfig } from "../components/avatar/dicebearOptions";
@@ -28,6 +29,7 @@ const teacherMenuItems = [
   { name: "Notes & Annotations", icon: NotebookPen, path: "/teacher/notes" },
   { name: "Assignments", icon: FileText, path: "/teacher/assignments" },
   { name: "Exams", icon: ClipboardCheck, path: "/teacher/exams" },
+  { name: "Submissions", icon: Inbox, path: "/teacher/submissions" },
   { name: "Live Classes", icon: Video, path: "/teacher/live-classes" },
   { name: "AI Studio", icon: Bot, path: "/teacher/ai-studio" },
   { name: "Analytics", icon: ChartColumn, path: "/teacher/analytics" },

@@ -13,6 +13,7 @@ const MIN_HEIGHT = 400;
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = "anonymous"; // lets the corrected-PDF export read the pixels
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error("The answer sheet image could not be loaded."));
     img.src = src;
@@ -85,6 +86,56 @@ export default function usePaperPages(url, isPdf, enabled = true) {
       cancelled = true;
     };
   }, [url, isPdf, enabled]);
+
+  const totalHeight = state.pages.reduce((sum, p) => sum + p.height, 0) || 1160;
+  return { ...state, totalHeight };
+}
+
+/**
+ * Like usePaperPages, but for a whole submission: any number of photos and
+ * PDFs (the student's sheets) stacked into one continuous paper. Annotation
+ * coordinates are relative to that stack, so a single-sheet submission is
+ * laid out exactly as before.
+ * `sheets` is a list of {url, type} where type is "image" or "pdf".
+ */
+export function usePaperSheets(sheets, enabled = true) {
+  const [state, setState] = useState({ pages: [], status: "idle", error: "" });
+  const key = (sheets || []).map((s) => `${s.type}:${s.url}`).join("|");
+
+  useEffect(() => {
+    if (!enabled || !key) {
+      setState({ pages: [], status: "idle", error: "" });
+      return undefined;
+    }
+    let cancelled = false;
+    setState({ pages: [], status: "loading", error: "" });
+
+    (async () => {
+      try {
+        const pages = [];
+        for (const sheet of sheets) {
+          if (sheet.type === "pdf") {
+            pages.push(...(await renderPdf(sheet.url)));
+          } else {
+            const img = await loadImage(sheet.url);
+            pages.push({
+              src: sheet.url,
+              height: Math.max(MIN_HEIGHT, Math.round((img.naturalHeight / img.naturalWidth) * PAPER_WIDTH)),
+            });
+          }
+          if (cancelled) return;
+        }
+        if (!cancelled) setState({ pages, status: "ready", error: "" });
+      } catch (err) {
+        if (!cancelled) setState({ pages: [], status: "error", error: err.message || "Could not open the files." });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, enabled]);
 
   const totalHeight = state.pages.reduce((sum, p) => sum + p.height, 0) || 1160;
   return { ...state, totalHeight };

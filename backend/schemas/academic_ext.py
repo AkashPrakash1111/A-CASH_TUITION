@@ -30,6 +30,14 @@ class NoteCreate(BaseModel):
 class NoteOut(NoteCreate):
     id: int
     visibility: str | None = "class"
+    attachmentsJson: str | None = None
+    reviewStatus: str | None = None
+    reviewFeedback: str | None = None
+    correctionData: str | None = None
+    correctedPdfUrl: str | None = None
+    reviewed_at: datetime | None = None
+    reviewed_by: str | None = None
+    uploadedBy: str | None = None
     created_at: datetime
 
     class Config:
@@ -40,6 +48,14 @@ class StudentUploadOut(NoteOut):
     """A student's own upload as staff see it: the class and batch are read
     from the student's roster entry right now, not frozen at upload time."""
     studentId: int | None = None
+    studentPhone: str | None = None
+
+
+class NoteReviewIn(BaseModel):
+    """A teacher's marked-up review of a student's upload."""
+    correctionData: str | None = None
+    feedback: str | None = None
+    correctedPdfUrl: str | None = None
 
 
 class MyNoteCreate(BaseModel):
@@ -52,6 +68,7 @@ class MyNoteCreate(BaseModel):
     fileName: str | None = None
     fileUrl: str | None = None  # data URL for pdf/image, http(s) address for link
     textContent: str | None = None
+    attachments: list["AttachmentIn"] | None = None  # many photos / PDFs / voice notes at once
 
 
 class NoteAnnotationCreate(BaseModel):
@@ -119,6 +136,7 @@ class AssignmentOut(AssignmentCreate):
     submission_id: int | None = None
     submission_status: str | None = None
     submission_file_url: str | None = None
+    correctedPdfUrl: str | None = None
     marks_obtained: str | None = None
     marksObtained: str | None = None
     feedback: str | None = None
@@ -147,6 +165,7 @@ class AssignmentGradeUpdate(BaseModel):
     status: str = "Reviewed"
     correctionData: str | None = None
     questionMarksJson: str | None = None
+    correctedPdfUrl: str | None = None
 
 
 class AssignmentSubmissionOut(BaseModel):
@@ -164,6 +183,7 @@ class AssignmentSubmissionOut(BaseModel):
     feedback: str | None = None
     correctionData: str | None = None
     questionMarksJson: str | None = None
+    correctedPdfUrl: str | None = None
     submitted_at: datetime
     graded_at: datetime | None = None
 
@@ -271,8 +291,9 @@ class ExamSubmissionCreate(BaseModel):
     audio_url: str | None = None
     textContent: str | None = None
     text_content: str | None = None
-    attachmentsJson: str | None = None
+    attachmentsJson: str | None = None   # ignored: use `attachments` (validated)
     attachments_json: str | None = None
+    attachments: list[AttachmentIn] | None = None  # any number of photos / PDFs / voice notes
 
 
 class ExamGradeUpdate(BaseModel):
@@ -281,6 +302,7 @@ class ExamGradeUpdate(BaseModel):
     status: str = "Graded"
     correctionData: str | None = None
     questionMarksJson: str | None = None
+    correctedPdfUrl: str | None = None
 
 
 class ExamSubmissionOut(BaseModel):
@@ -298,6 +320,7 @@ class ExamSubmissionOut(BaseModel):
     status: str
     correctionData: str | None = None
     questionMarksJson: str | None = None
+    correctedPdfUrl: str | None = None
     started_at: datetime
     submitted_at: datetime | None = None
     graded_at: datetime | None = None

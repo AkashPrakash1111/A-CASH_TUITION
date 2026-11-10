@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { X, Award, Clock, FileText, RotateCcw, AlertTriangle } from "lucide-react";
+import { X, Award, Clock, FileText, RotateCcw, AlertTriangle, PenTool } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { assignmentsApi } from "../../services/api";
 import AttachmentList from "./AttachmentList";
+import PaperCorrectionStudio from "../grading/PaperCorrectionStudio";
 
 const STATUS_LABEL = {
   Submitted: { text: "Turned in", cls: "bg-amber-100 text-amber-800" },
@@ -20,6 +21,13 @@ export default function SubmissionsDrawer({ assignment, onClose, onGraded }) {
   const [drafts, setDrafts] = useState({}); // { [submissionId]: { marks, feedback } }
   const [savingId, setSavingId] = useState(null);
   const [errors, setErrors] = useState({});
+  const [marking, setMarking] = useState(null); // submission open in the marking studio
+
+  const reload = () =>
+    assignmentsApi.listSubmissions(token, assignment.id).then((data) => {
+      setLoad({ status: "ready", submissions: Array.isArray(data) ? data : [], error: "" });
+      if (onGraded) onGraded();
+    });
 
   useEffect(() => {
     if (!assignment?.id || !token) return undefined;
@@ -200,7 +208,16 @@ export default function SubmissionsDrawer({ assignment, onClose, onGraded }) {
                     <p role="alert" className="text-xs text-red-600">{errors[sub.id]}</p>
                   )}
 
-                  <div className="flex justify-end gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {(sub.attachments?.length > 0) && (
+                      <button
+                        type="button"
+                        onClick={() => setMarking(sub)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 transition"
+                      >
+                        <PenTool size={13} /> Mark on paper
+                      </button>
+                    )}
                     {sub.status !== "Returned" && (
                       <button
                         type="button"
@@ -228,6 +245,17 @@ export default function SubmissionsDrawer({ assignment, onClose, onGraded }) {
           })}
         </div>
       </div>
+      {marking && (
+        <PaperCorrectionStudio
+          isOpen
+          isExam={false}
+          kind="assignment"
+          submission={marking}
+          examOrAssignment={assignment}
+          onClose={() => setMarking(null)}
+          onSaveSuccess={reload}
+        />
+      )}
     </div>
   );
 }

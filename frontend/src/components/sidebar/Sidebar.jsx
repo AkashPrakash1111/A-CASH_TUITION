@@ -16,6 +16,7 @@ import {
   LogOut,
   Gift,
   HeartHandshake,
+  Inbox,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { buildAvatarUrl, getDefaultAvatarConfig } from "../avatar/dicebearOptions";
@@ -46,6 +47,7 @@ export default function Sidebar() {
     { name: "Notes", icon: NotebookPen, path: `${rolePrefix}/notes` },
     { name: "Assignments", icon: FileText, path: `${rolePrefix}/assignments` },
     { name: "Exams", icon: ClipboardCheck, path: `${rolePrefix}/exams` },
+    { name: "Submissions", icon: Inbox, path: `${rolePrefix}/submissions` },
     { name: "Live Classes", icon: Video, path: `${rolePrefix}/live-classes` },
     { name: "AI Studio", icon: Bot, path: `${rolePrefix}/ai-studio` },
     { name: "Analytics", icon: ChartColumn, path: `${rolePrefix}/analytics` },

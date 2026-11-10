@@ -191,14 +191,12 @@ export default function StudentExams() {
                         ? `Graded: ${exam.submission_marks} / ${exam.total_marks}`
                         : "Submitted - awaiting grading"}
                     </div>
-                    {exam.submission_status === "Graded" && (
-                      <button
-                        onClick={() => openCorrected(exam)}
-                        className="mt-2 w-full py-2.5 rounded-xl bg-purple-50 text-purple-700 font-semibold text-xs hover:bg-purple-100 transition"
-                      >
-                        View corrected paper & feedback
-                      </button>
-                    )}
+                    <button
+                      onClick={() => openCorrected(exam)}
+                      className="mt-2 w-full py-2.5 rounded-xl bg-purple-50 text-purple-700 font-semibold text-xs hover:bg-purple-100 transition"
+                    >
+                      {exam.submission_status === "Graded" ? "View corrected paper & feedback" : "View my attempt & question paper"}
+                    </button>
                   </>
                 ) : isCompleted ? (
                   <div className="w-full py-2.5 rounded-xl bg-slate-50 text-slate-500 text-center font-semibold text-xs">
@@ -236,7 +234,7 @@ export default function StudentExams() {
           isOpen
           onClose={() => setViewing(null)}
           submission={viewing.submission}
-          examOrAssignment={viewing.exam}
+          examOrAssignment={{ ...viewing.exam, title: viewing.exam.examName, maxMarks: viewing.exam.maxMarks || viewing.exam.total_marks }}
         />
       )}
     </div>

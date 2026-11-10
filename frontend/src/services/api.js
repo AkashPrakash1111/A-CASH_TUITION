@@ -122,6 +122,8 @@ export const notesApi = {
     return request(`/notes/student-uploads${query ? `?${query}` : ""}`, { token });
   },
   listMine: (token) => request("/notes/mine", { token }),
+  // Teacher/admin marks up a student's upload and sends it back
+  review: (token, id, data) => request(`/notes/${id}/review`, { method: "PUT", token, body: data }),
   createMine: (token, data) => request("/notes/mine", { method: "POST", token, body: data }),
   getAnnotations: (token, noteId) => request(`/notes/${noteId}/annotations`, { token }),
   // AnnotationCanvas calls this name; without it, opening a saved note's studio throws.
@@ -172,6 +174,15 @@ export const examsApi = {
     request(`/exams/submissions/${submissionId}/grade`, { method: "PUT", token, body: data }),
   parseBulkQuestions: (token, rawText) =>
     request("/exams/parse-bulk-questions", { method: "POST", token, body: { rawText } }),
+};
+
+export const inboxApi = {
+  // Everything students handed in (assignments, exams, personal notes), filterable
+  list: (token, params = {}) => {
+    const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== "" && v != null));
+    const query = new URLSearchParams(clean).toString();
+    return request(`/submissions/inbox${query ? `?${query}` : ""}`, { token });
+  },
 };
 
 export const progressApi = {

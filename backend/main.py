@@ -21,6 +21,7 @@ from routers import files as files_router
 from routers import rewards as rewards_router
 from routers import parents as parents_router
 from routers import progress as progress_router
+from routers import inbox as inbox_router
 
 # Import all models here so Base.metadata knows about them before create_all runs.
 from models import user  # noqa: F401
@@ -33,6 +34,14 @@ from models import storage  # noqa: F401
 load_dotenv()
 
 Base.metadata.create_all(bind=engine)
+
+
+def _add_column(conn, table: str, column: str, ddl_type: str):
+    """ADD COLUMN only if missing. Names are double-quoted: unquoted, Postgres
+    would fold "correctedPdfUrl" to lowercase and the model would not find it."""
+    existing = {c["name"] for c in inspect(conn).get_columns(table)}
+    if column not in existing:
+        conn.execute(text(f'ALTER TABLE {table} ADD COLUMN "{column}" {ddl_type}'))
 
 
 def apply_schema_upgrades():
@@ -89,6 +98,19 @@ def apply_schema_upgrades():
             if "questionPaperUrl" not in cols:
                 conn.execute(text("ALTER TABLE exams ADD COLUMN questionPaperUrl TEXT"))
 
+        # Corrected-PDF / student-upload review fields
+        for table in ("assignment_submissions", "exam_submissions"):
+            if table in tables:
+                _add_column(conn, table, "correctedPdfUrl", "VARCHAR")
+        if "notes" in tables:
+            _add_column(conn, "notes", "attachmentsJson", "TEXT")
+            _add_column(conn, "notes", "reviewStatus", "VARCHAR")
+            _add_column(conn, "notes", "reviewFeedback", "TEXT")
+            _add_column(conn, "notes", "correctionData", "TEXT")
+            _add_column(conn, "notes", "correctedPdfUrl", "VARCHAR")
+            _add_column(conn, "notes", "reviewed_at", "TIMESTAMP")
+            _add_column(conn, "notes", "reviewed_by", "VARCHAR")
+
 
 apply_schema_upgrades()
 
@@ -139,6 +161,7 @@ app.include_router(files_router.router)
 app.include_router(rewards_router.router)
 app.include_router(parents_router.router)
 app.include_router(progress_router.router)
+app.include_router(inbox_router.router)
 
 
 @app.get("/health")

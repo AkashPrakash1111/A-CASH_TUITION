@@ -18,6 +18,7 @@ import Batches from "../pages/Batches";
 import Notes from "../pages/Notes";
 import Assignments from "../pages/Assignments";
 import Exams from "../pages/Exams";
+import Submissions from "../pages/Submissions";
 import LiveClasses from "../pages/LiveClasses";
 import AIStudio from "../pages/AIStudio";
 import Analytics from "../pages/Analytics";
@@ -91,6 +92,7 @@ export default function AppRoutes() {
           <Route path="/admin/notes" element={<Notes />} />
           <Route path="/admin/assignments" element={<Assignments />} />
           <Route path="/admin/exams" element={<Exams />} />
+          <Route path="/admin/submissions" element={<Submissions />} />
           <Route path="/admin/live-classes" element={<LiveClasses />} />
           <Route path="/admin/ai-studio" element={<AIStudio />} />
           <Route path="/admin/analytics" element={<Analytics />} />
@@ -110,6 +112,7 @@ export default function AppRoutes() {
           <Route path="/teacher/notes" element={<Notes />} />
           <Route path="/teacher/assignments" element={<Assignments />} />
           <Route path="/teacher/exams" element={<Exams />} />
+          <Route path="/teacher/submissions" element={<Submissions />} />
           <Route path="/teacher/live-classes" element={<LiveClasses />} />
           <Route path="/teacher/ai-studio" element={<AIStudio />} />
           <Route path="/teacher/analytics" element={<Analytics />} />

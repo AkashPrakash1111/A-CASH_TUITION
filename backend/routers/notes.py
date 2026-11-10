@@ -9,6 +9,7 @@ from models.academic import Batch, Note, NoteAnnotation, Student, Teacher
 from models.user import User, UserRole
 from schemas.academic_ext import (
     MyNoteCreate,
+    NoteReviewIn,
     NoteCreate,
     NoteOut,
     StudentUploadOut,
@@ -18,6 +19,8 @@ from schemas.academic_ext import (
 from utils.audience import find_student, norm
 from utils.deps import get_current_user, require_role
 from utils.file_storage import ensure_persistent_file_url
+from utils.attachments import process_attachments, dump as dump_attachments
+from datetime import datetime
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -187,7 +190,10 @@ def create_my_note(
         raise HTTPException(status_code=400, detail="Give your note a title")
 
     note_type = (payload.type or "").lower()
-    if note_type not in {"pdf", "image", "text", "link"}:
+    has_files = bool(payload.attachments)
+    if has_files:
+        note_type = "files"
+    if note_type not in {"pdf", "image", "text", "link", "files"}:
         raise HTTPException(status_code=400, detail="Unsupported note type")
 
     owned = (
@@ -202,7 +208,17 @@ def create_my_note(
     file_name = payload.fileName
     text_content = None
 
-    if note_type == "text":
+    attachments_json = None
+    if note_type == "files":
+        stored = process_attachments(payload.attachments, "notes")
+        if not stored:
+            raise HTTPException(status_code=400, detail="Choose at least one file")
+        attachments_json = dump_attachments(stored)
+        file_url = stored[0]["url"]
+        file_name = stored[0]["name"]
+        text_content = (payload.textContent or "").strip() or None
+
+    elif note_type == "text":
         text_content = (payload.textContent or "").strip()
         if not text_content:
             raise HTTPException(status_code=400, detail="Write something in your note")
@@ -250,6 +266,7 @@ def create_my_note(
         fileName=file_name,
         fileUrl=file_url,
         textContent=text_content,
+        attachmentsJson=attachments_json,
         uploadedBy=current_user.name,
         uploader_id=current_user.id,
         status="Published",
@@ -319,6 +336,36 @@ def create_note(
         visibility="class",
     )
     db.add(note)
+    db.commit()
+    db.refresh(note)
+    return note
+
+
+@router.put("/{note_id}/review", response_model=NoteOut)
+def review_student_upload(
+    note_id: int,
+    payload: NoteReviewIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.teacher)),
+):
+    """Teacher/admin marks up a student's upload and sends it back: the drawn
+    layer, a comment and (optionally) the flattened corrected PDF."""
+    note = db.query(Note).filter(Note.id == note_id).first()
+    if not note or not is_private(note):
+        raise HTTPException(status_code=404, detail="Upload not found")
+
+    if payload.correctionData is not None:
+        note.correctionData = payload.correctionData
+    if payload.feedback is not None:
+        note.reviewFeedback = payload.feedback
+    if payload.correctedPdfUrl:
+        url = payload.correctedPdfUrl
+        if not url.startswith("/files/view/corrected/") or ".." in url:
+            raise HTTPException(status_code=400, detail="Invalid corrected file")
+        note.correctedPdfUrl = url
+    note.reviewStatus = "Reviewed"
+    note.reviewed_at = datetime.utcnow()
+    note.reviewed_by = current_user.name
     db.commit()
     db.refresh(note)
     return note

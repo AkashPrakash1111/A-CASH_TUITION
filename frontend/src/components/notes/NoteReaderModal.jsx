@@ -15,6 +15,16 @@ import {
 } from "lucide-react";
 import { filesApi } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
+import AttachmentList from "../assignments/AttachmentList";
+
+function noteFiles(note) {
+  try {
+    const list = JSON.parse(note?.attachmentsJson || "[]");
+    return Array.isArray(list) ? list.filter((f) => f && f.url) : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function NoteReaderModal({ note, isOpen, onClose, onAnnotate }) {
   const { token } = useAuth();
@@ -22,6 +32,9 @@ export default function NoteReaderModal({ note, isOpen, onClose, onAnnotate }) {
   const [rotation, setRotation] = useState(0);
 
   if (!isOpen || !note) return null;
+
+  const files = noteFiles(note);
+  const reviewed = note.reviewStatus === "Reviewed";
 
   const rawUrl = note.fileUrl || note.file_url || "";
   const resolvedUrl = filesApi.resolveFileUrl(rawUrl, token);
@@ -146,7 +159,32 @@ export default function NoteReaderModal({ note, isOpen, onClose, onAnnotate }) {
 
         {/* Content Viewer Area */}
         <div className="flex-1 bg-slate-100/70 p-4 overflow-auto flex items-center justify-center relative">
-          {isLink && rawUrl ? (
+          {files.length > 0 ? (
+            <div className="w-full h-full overflow-auto">
+              <div className="mx-auto max-w-3xl space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+                {reviewed && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
+                    <p className="text-sm font-bold text-emerald-800">Checked by {note.reviewed_by || "your teacher"}</p>
+                    {note.reviewFeedback && <p className="whitespace-pre-wrap text-sm text-emerald-900">{note.reviewFeedback}</p>}
+                    {note.correctedPdfUrl && (
+                      <a
+                        href={filesApi.resolveFileUrl(note.correctedPdfUrl, token)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                      >
+                        <Download size={14} /> Open corrected PDF
+                      </a>
+                    )}
+                  </div>
+                )}
+                <AttachmentList attachments={files} />
+                {note.textContent && (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{note.textContent}</p>
+                )}
+              </div>
+            </div>
+          ) : isLink && rawUrl ? (
             <div className="text-center p-8 bg-white rounded-3xl shadow-sm border border-slate-200 max-w-md">
               <ExternalLink size={44} className="mx-auto text-[#008388] mb-3" />
               <h4 className="font-bold text-slate-800 text-base">{note.title}</h4>

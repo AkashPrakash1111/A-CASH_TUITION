@@ -16,6 +16,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { examsApi, filesApi } from "../../services/api";
 import { normalizeExam, normalizeQuestions } from "../../utils/examUtils";
+import AttachmentPicker from "../../components/assignments/AttachmentPicker";
 
 export default function ExamTaking() {
   const { id } = useParams();
@@ -29,7 +30,7 @@ export default function ExamTaking() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({}); // { [qId or index]: answerValue }
   const [flagged, setFlagged] = useState({}); // { [qId or index]: boolean }
-  const [answerSheetFile, setAnswerSheetFile] = useState(null);
+  const [attachments, setAttachments] = useState([]); // photos / PDFs / voice notes
 
   // Countdown timer
   const [secondsRemaining, setSecondsRemaining] = useState(3600);
@@ -106,18 +107,9 @@ export default function ExamTaking() {
   const handleFinalSubmit = async () => {
     setSubmitting(true);
     try {
-      let fileUrl = "";
-      if (answerSheetFile) {
-        fileUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.readAsDataURL(answerSheetFile);
-        });
-      }
-
       await examsApi.submit(token, id, {
         answers_json: JSON.stringify(answers),
-        file_url: fileUrl,
+        attachments: attachments.map(({ name, type, url }) => ({ name, type, url })),
       });
 
       setSubmitted(true);
@@ -293,19 +285,9 @@ export default function ExamTaking() {
               <FileText size={16} className="text-purple-600" /> Attach Handwritten Answer Sheets
             </h4>
             <p className="text-[11px] text-slate-500">
-              Upload photos of your calculations or written sheets if required.
+              Take photos with your camera or pick as many as you like from your gallery. PDFs and voice notes work too.
             </p>
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => setAnswerSheetFile(e.target.files[0])}
-              className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 cursor-pointer"
-            />
-            {answerSheetFile && (
-              <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                <CheckCircle2 size={12} /> {answerSheetFile.name} attached
-              </p>
-            )}
+            <AttachmentPicker value={attachments} onChange={setAttachments} disabled={submitting} />
           </div>
         </div>
 

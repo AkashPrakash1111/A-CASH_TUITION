@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from fastapi.responses import Response
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/files", tags=["files"])
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UPLOADS_ROOT = os.path.join(os.getenv("DATA_DIR") or BACKEND_DIR, "uploads")
-ALLOWED_CATEGORIES = {"notes", "assignments", "submissions", "exams", "general"}
+ALLOWED_CATEGORIES = {"notes", "assignments", "submissions", "exams", "corrected", "general"}
 ALLOWED_EXTENSIONS = {
     ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".svg", ".txt", ".doc", ".docx",
     ".webm", ".ogg", ".mp3", ".wav", ".m4a", ".aac",
@@ -154,12 +154,14 @@ async def upload_file(
     file: UploadFile = File(...),
     category: str = Form("general"),
     token: Optional[str] = Form(None),
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     """
     Accepts multipart file upload, validates extension, stores securely in backend/uploads/{category}/,
     and returns accessible URL paths.
     """
+    resolve_auth_user(token, authorization, db)  # only signed-in users may upload
     if category not in ALLOWED_CATEGORIES:
         category = "general"
 
@@ -200,12 +202,14 @@ async def upload_file(
 @router.post("/upload-base64")
 def upload_base64_file(
     payload: Base64UploadRequest,
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     """
     Receives base64 dataURL (e.g. from canvas or camera capture),
     saves to disk, and returns the persistent fileUrl.
     """
+    resolve_auth_user(None, authorization, db)
     category = payload.category if payload.category in ALLOWED_CATEGORIES else "general"
     data_url = payload.dataUrl
 

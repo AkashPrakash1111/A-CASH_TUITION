@@ -1,61 +1,29 @@
-import { useRef, useState } from "react";
-import { X, Image, FileText, Type, Link2, UploadCloud } from "lucide-react";
-
-const MAX_BYTES = 25 * 1024 * 1024;
+import { useState } from "react";
+import { X, Paperclip, Type, Link2 } from "lucide-react";
+import AttachmentPicker from "../assignments/AttachmentPicker";
 
 const KINDS = [
-  { id: "image", label: "Photo", icon: Image, accept: "image/png,image/jpeg,image/webp" },
-  { id: "pdf", label: "PDF", icon: FileText, accept: "application/pdf,.pdf" },
+  { id: "files", label: "Photos / Files", icon: Paperclip },
   { id: "text", label: "Text", icon: Type },
   { id: "link", label: "Link", icon: Link2 },
 ];
 
-const readAsDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("That file couldn't be read"));
-    reader.readAsDataURL(file);
-  });
-
 // Rendered only while open (the parent mounts/unmounts it), so every open
 // starts with a clean form.
 export default function MyUploadModal({ subjects = [], onSave, onClose }) {
-  const fileInput = useRef(null);
-
-  const [kind, setKind] = useState("image");
+  const [kind, setKind] = useState("files");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("");
-  const [file, setFile] = useState(null);
+  const [attachments, setAttachments] = useState([]);
   const [text, setText] = useState("");
   const [link, setLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const current = KINDS.find((k) => k.id === kind);
-  const needsFile = kind === "image" || kind === "pdf";
-
   const switchKind = (id) => {
     setKind(id);
-    setFile(null);
     setError("");
-  };
-
-  const handleFile = (e) => {
-    const picked = e.target.files?.[0];
-    e.target.value = "";
-    if (!picked) return;
-
-    if (picked.size > MAX_BYTES) {
-      setFile(null);
-      setError("That file is larger than 25 MB.");
-      return;
-    }
-
-    setError("");
-    setFile(picked);
-    if (!title.trim()) setTitle(picked.name.replace(/\.[^.]+$/, ""));
   };
 
   const handleSave = async (e) => {
@@ -64,7 +32,7 @@ export default function MyUploadModal({ subjects = [], onSave, onClose }) {
 
     const cleanTitle = title.trim();
     if (!cleanTitle) return setError("Give your note a title.");
-    if (needsFile && !file) return setError(kind === "pdf" ? "Choose a PDF." : "Choose a photo.");
+    if (kind === "files" && attachments.length === 0) return setError("Add at least one photo, PDF or audio file.");
     if (kind === "text" && !text.trim()) return setError("Write something in your note.");
     if (kind === "link" && !/^https?:\/\/\S+$/i.test(link.trim())) {
       return setError("Enter a full link starting with http:// or https://");
@@ -79,9 +47,9 @@ export default function MyUploadModal({ subjects = [], onSave, onClose }) {
         type: kind,
       };
 
-      if (needsFile) {
-        payload.fileUrl = await readAsDataUrl(file);
-        payload.fileName = file.name;
+      if (kind === "files") {
+        payload.attachments = attachments.map(({ name, type, url }) => ({ name, type, url }));
+        payload.textContent = text.trim() || null;
       } else if (kind === "text") {
         payload.textContent = text;
       } else {
@@ -119,7 +87,7 @@ export default function MyUploadModal({ subjects = [], onSave, onClose }) {
           </button>
         </div>
 
-        <div className="grid grid-cols-4 gap-2" role="group" aria-label="What are you adding?">
+        <div className="grid grid-cols-3 gap-2" role="group" aria-label="What are you adding?">
           {KINDS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -139,28 +107,19 @@ export default function MyUploadModal({ subjects = [], onSave, onClose }) {
         </div>
 
         <div className="mt-5 space-y-4">
-          {needsFile && (
-            <div>
-              <button
-                type="button"
-                onClick={() => fileInput.current?.click()}
-                className="w-full rounded-2xl border-2 border-dashed border-slate-300 hover:border-[#008388] bg-slate-50 py-8 flex flex-col items-center gap-1 transition"
-              >
-                <UploadCloud size={30} className="text-[#008388]" />
-                <span className="text-sm font-semibold text-slate-700">
-                  {file ? file.name : kind === "pdf" ? "Choose a PDF" : "Choose a photo"}
-                </span>
-                <span className="text-[11px] text-slate-400">
-                  {kind === "pdf" ? "PDF" : "JPG, PNG or WEBP"} · up to 25 MB
-                </span>
-              </button>
-              <input
-                ref={fileInput}
-                type="file"
-                hidden
-                accept={current.accept}
-                onChange={handleFile}
-              />
+          {kind === "files" && (
+            <div className="space-y-4">
+              <AttachmentPicker value={attachments} onChange={setAttachments} disabled={saving} />
+              <label className="block text-sm font-semibold text-slate-700">
+                Message <span className="font-normal text-slate-400">(optional)</span>
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  rows={3}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 p-3 text-sm font-normal outline-none focus:border-[#008388] resize-none"
+                  placeholder="Anything your teacher should know..."
+                />
+              </label>
             </div>
           )}
 

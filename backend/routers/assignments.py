@@ -85,6 +85,24 @@ def _sub_out(sub: AssignmentSubmission) -> AssignmentSubmissionOut:
     return item
 
 
+RELEASED = ("Reviewed", "Returned")
+
+
+def _sub_out_for_student(sub: AssignmentSubmission) -> AssignmentSubmissionOut:
+    """What the student may see: marks, feedback and the teacher's corrections
+    stay hidden until the teacher has actually released the review."""
+    item = _sub_out(sub)
+    if sub.status not in RELEASED:
+        item.marksObtained = None
+        item.feedback = None
+        item.correctionData = None
+        item.questionMarksJson = None
+        item.correctedPdfUrl = None
+        if sub.status == "Draft":
+            item.status = "Submitted"  # a draft review is private to the teacher
+    return item
+
+
 def _assignment_out(db: Session, a: Assignment, student=None) -> AssignmentOut:
     item = AssignmentOut.model_validate(a)
     item.attachments = _atts(a.attachmentsJson, a.fileUrl, a.fileName)
@@ -102,7 +120,7 @@ def _assignment_out(db: Session, a: Assignment, student=None) -> AssignmentOut:
         if sub:
             item.is_submitted = True
             item.submission_id = sub.id
-            item.submission_status = sub.status
+            item.submission_status = "Submitted" if sub.status == "Draft" else sub.status
             item.submission_text = sub.textContent
             item.submission_attachments = _atts(sub.attachmentsJson, sub.fileUrl, sub.fileName)
             item.submitted_at = sub.submitted_at
@@ -114,6 +132,7 @@ def _assignment_out(db: Session, a: Assignment, student=None) -> AssignmentOut:
                 item.feedback = sub.feedback
                 item.correctionData = sub.correctionData
                 item.questionMarksJson = sub.questionMarksJson
+                item.correctedPdfUrl = sub.correctedPdfUrl
     return item
 
 
@@ -210,7 +229,7 @@ def get_my_submissions(
         .order_by(AssignmentSubmission.submitted_at.desc())
         .all()
     )
-    return [_sub_out(s) for s in rows]
+    return [_sub_out_for_student(s) for s in rows]
 
 
 @router.get("/submissions/{submission_id}", response_model=AssignmentSubmissionOut)
@@ -227,6 +246,7 @@ def get_assignment_submission(
         student = find_student(db, current_user)
         if not student or submission.student_id != student.id:
             raise HTTPException(status_code=404, detail="Submission not found")
+        return _sub_out_for_student(submission)
 
     return _sub_out(submission)
 
@@ -242,8 +262,11 @@ def grade_submission(
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
 
-    if payload.status not in ("Reviewed", "Returned"):
-        raise HTTPException(status_code=400, detail="Status must be Reviewed or Returned")
+    # The marking studio says "Graded" / "Draft Graded"; map those onto the
+    # assignment statuses. "Draft" keeps the work hidden from the student.
+    new_status = {"Graded": "Reviewed", "Draft Graded": "Draft"}.get(payload.status, payload.status)
+    if new_status not in ("Reviewed", "Returned", "Draft"):
+        raise HTTPException(status_code=400, detail="Status must be Reviewed, Returned or Draft")
 
     if payload.marksObtained is not None and str(payload.marksObtained).strip() != "":
         try:
@@ -270,7 +293,13 @@ def grade_submission(
     if payload.questionMarksJson is not None:
         submission.questionMarksJson = payload.questionMarksJson
 
-    submission.status = payload.status
+    if payload.correctedPdfUrl:
+        url = payload.correctedPdfUrl
+        if not url.startswith("/files/view/corrected/") or ".." in url:
+            raise HTTPException(status_code=400, detail="Invalid corrected file")
+        submission.correctedPdfUrl = url
+
+    submission.status = new_status
     submission.graded_at = datetime.utcnow()
 
     db.commit()
@@ -278,7 +307,7 @@ def grade_submission(
 
     # Award bonus CASH on high score (>= 90%)
     try:
-        if payload.marksObtained is not None:
+        if payload.marksObtained is not None and new_status != "Draft":
             assignment = db.query(Assignment).filter_by(id=submission.assignment_id).first()
             max_m = float(assignment.maxMarks) if assignment and assignment.maxMarks else 100.0
             obtained = float(payload.marksObtained)

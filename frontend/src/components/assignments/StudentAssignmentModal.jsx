@@ -4,6 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { assignmentsApi } from "../../services/api";
 import AttachmentList from "./AttachmentList";
 import AttachmentPicker from "./AttachmentPicker";
+import CorrectedPaperViewer from "../grading/CorrectedPaperViewer";
 import { dueLabel, formatDue, isPastDue, submissionState } from "./assignmentHelpers";
 
 let counter = 0;
@@ -25,6 +26,7 @@ export default function StudentAssignmentModal({ assignment, onClose, onSubmitte
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [viewCorrected, setViewCorrected] = useState(false);
 
   const canEdit = !graded && !closed;
   const hasAnswer = text.trim().length > 0 || attachments.length > 0;
@@ -123,6 +125,15 @@ export default function StudentAssignmentModal({ assignment, onClose, onSubmitte
                 <MessageSquare size={14} className="mt-0.5 shrink-0" /> {assignment.feedback}
               </p>
             )}
+            {graded && (assignment.correctionData || assignment.correctedPdfUrl) && (
+              <button
+                type="button"
+                onClick={() => setViewCorrected(true)}
+                className="mt-3 rounded-xl bg-purple-600 px-4 py-2 text-xs font-semibold text-white hover:bg-purple-700"
+              >
+                View my corrected work
+              </button>
+            )}
           </div>
         )}
 
@@ -208,6 +219,23 @@ export default function StudentAssignmentModal({ assignment, onClose, onSubmitte
           )}
         </section>
       </div>
+      {viewCorrected && (
+        <CorrectedPaperViewer
+          isOpen
+          onClose={() => setViewCorrected(false)}
+          submission={{
+            status: "Reviewed",
+            attachments: assignment.submission_attachments,
+            textContent: assignment.submission_text,
+            correctionData: assignment.correctionData,
+            questionMarksJson: assignment.questionMarksJson,
+            feedback: assignment.feedback,
+            marksObtained: assignment.marks_obtained,
+            correctedPdfUrl: assignment.correctedPdfUrl,
+          }}
+          examOrAssignment={{ title: assignment.title, maxMarks }}
+        />
+      )}
     </div>
   );
 }

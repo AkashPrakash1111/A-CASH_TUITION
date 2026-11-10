@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Image as ImageIcon, FileText, Music, Mic, Square, X, Paperclip } from "lucide-react";
+import { Image as ImageIcon, FileText, Music, Mic, Square, X, Paperclip, Camera } from "lucide-react";
 import { filesApi } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -28,6 +28,47 @@ const readAsDataUrl = (blob) =>
     reader.readAsDataURL(blob);
   });
 
+const MAX_SIDE = 1800; // longest edge of a photo after compression
+const JPEG_QUALITY = 0.82;
+
+/**
+ * Shrink a photo before it is sent: phone cameras give 3-8 MB images, and a
+ * dozen of them would fill the free database. Returns {blob, name}.
+ * Falls back to the original if the browser can't decode it.
+ */
+async function compressImage(file) {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("decode"));
+      el.src = objectUrl;
+    });
+    const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; // PNG transparency would turn black in a JPEG
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
+    if (!blob) throw new Error("encode");
+    // Keep the original when it was already smaller and untouched
+    if (scale === 1 && file.type === "image/jpeg" && file.size <= blob.size) return { blob: file, name: file.name };
+    const base = (file.name || "photo").replace(/\.[^.]+$/, "");
+    return { blob, name: `${base}.jpg` };
+  } catch {
+    if (IMAGE_MIMES.has((file.type || "").toLowerCase())) return { blob: file, name: file.name };
+    throw new Error(`"${file.name}" couldn't be opened as a photo.`);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 let counter = 0;
 const uid = () => `new-${Date.now()}-${counter++}`;
 
@@ -42,13 +83,15 @@ const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
  * Items whose url already starts with /files/ are files that were saved
  * earlier and are simply kept.
  */
-export default function AttachmentPicker({ value = [], onChange, max = 8, disabled = false }) {
+export default function AttachmentPicker({ value = [], onChange, max = 40, disabled = false }) {
   const { token } = useAuth();
   const imageInput = useRef(null);
+  const cameraInput = useRef(null);
   const pdfInput = useRef(null);
   const audioInput = useRef(null);
 
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
 
@@ -66,30 +109,37 @@ export default function AttachmentPicker({ value = [], onChange, max = 8, disabl
     e.target.value = "";
     if (files.length === 0) return;
     setError("");
+    setBusy(true);
 
     if (value.length + files.length > max) {
       setError(`You can attach up to ${max} files.`);
+      setBusy(false);
       return;
     }
 
     try {
       const items = [];
       for (const file of files) {
-        const kind = kindOfMime(file.type);
+        const kind = expected === "image" && (file.type || "").startsWith("image/") ? "image" : kindOfMime(file.type);
         if (!kind || kind !== expected) {
           const what = expected === "image" ? "a JPG, PNG or WEBP photo" : expected === "pdf" ? "a PDF" : "an audio file (MP3, WAV, M4A, OGG)";
           setError(`"${file.name}" isn't ${what}.`);
           return;
         }
-        if (file.size > MAX_BYTES) {
+        let blob = file;
+        let name = file.name;
+        if (kind === "image") ({ blob, name } = await compressImage(file));
+        if (blob.size > MAX_BYTES) {
           setError(`"${file.name}" is larger than 25 MB.`);
           return;
         }
-        items.push({ id: uid(), name: file.name, type: kind, url: await readAsDataUrl(file), size: file.size });
+        items.push({ id: uid(), name, type: kind, url: await readAsDataUrl(blob), size: blob.size });
       }
       append(items);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -186,8 +236,11 @@ export default function AttachmentPicker({ value = [], onChange, max = 8, disabl
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={btn} disabled={disabled || full || recording} onClick={() => imageInput.current?.click()}>
-          <ImageIcon size={14} /> Add photos
+        <button type="button" className={btn} disabled={disabled || full || recording || busy} onClick={() => cameraInput.current?.click()}>
+          <Camera size={14} /> Take photo
+        </button>
+        <button type="button" className={btn} disabled={disabled || full || recording || busy} onClick={() => imageInput.current?.click()}>
+          <ImageIcon size={14} /> Choose from gallery
         </button>
         <button type="button" className={btn} disabled={disabled || full || recording} onClick={() => pdfInput.current?.click()}>
           <FileText size={14} /> Add PDF
@@ -211,9 +264,14 @@ export default function AttachmentPicker({ value = [], onChange, max = 8, disabl
         )}
       </div>
 
-      <input ref={imageInput} type="file" hidden multiple accept="image/png,image/jpeg,image/webp" onChange={(e) => handleFiles(e, "image")} />
+      <input ref={imageInput} type="file" hidden multiple accept="image/*" onChange={(e) => handleFiles(e, "image")} />
+      <input ref={cameraInput} type="file" hidden accept="image/*" capture="environment" onChange={(e) => handleFiles(e, "image")} />
       <input ref={pdfInput} type="file" hidden multiple accept="application/pdf,.pdf" onChange={(e) => handleFiles(e, "pdf")} />
       <input ref={audioInput} type="file" hidden multiple accept="audio/*" onChange={(e) => handleFiles(e, "audio")} />
+
+      {busy && (
+        <p role="status" className="text-xs font-medium text-[#008388]">Preparing photos…</p>
+      )}
 
       {recording && (
         <p className="flex items-center gap-2 text-xs font-medium text-red-600" role="status">
@@ -260,7 +318,7 @@ export default function AttachmentPicker({ value = [], onChange, max = 8, disabl
         </ul>
       ) : (
         <p className="flex items-center gap-2 text-[11px] text-slate-400">
-          <Paperclip size={12} /> Photos (JPG, PNG, WEBP), PDFs and audio · up to {max} files, 25 MB each
+          <Paperclip size={12} /> Photos, PDFs and audio · up to {max} files · select many photos at once
         </p>
       )}
     </div>

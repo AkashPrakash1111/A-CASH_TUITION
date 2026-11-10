@@ -20,6 +20,7 @@ from schemas.academic_ext import (
 )
 from utils.deps import get_current_user, require_role
 from utils.file_storage import ensure_persistent_file_url
+from utils.attachments import process_attachments, dump as dump_attachments
 
 router = APIRouter(prefix="/exams", tags=["exams"])
 
@@ -50,6 +51,7 @@ def _student_view_of_submission(submission: ExamSubmission) -> ExamSubmissionOut
         out.feedback = None
         out.correctionData = None
         out.questionMarksJson = None
+        out.correctedPdfUrl = None
         if submission.status == "Draft Graded":
             out.status = "Submitted"
     return out
@@ -444,11 +446,22 @@ def submit_exam_attempt(
     submitted_sheet = payload.answerSheetUrl or payload.file_url or payload.answer_sheet_url
     submitted_audio = payload.audioUrl or payload.audio_url
     submitted_text = payload.textContent or payload.text_content
-    submitted_attach = payload.attachmentsJson or payload.attachments_json
+    submitted_attach = None
+    if payload.attachments:
+        stored = process_attachments(payload.attachments, "submissions")
+        submitted_attach = dump_attachments(stored)
+        if not submitted_sheet:
+            first = next((a for a in stored if a["type"] in ("image", "pdf")), None)
+            clean_first = first["url"] if first else None
+        else:
+            clean_first = None
+    else:
+        clean_first = None
 
     clean_sheet_url, _ = ensure_persistent_file_url(
         submitted_sheet, "submissions", f"exam_{exam_id}_student_{student_id}"
     )
+    clean_sheet_url = clean_sheet_url or clean_first
 
     clean_audio_url = None
     if submitted_audio:
@@ -589,6 +602,11 @@ def grade_exam_submission(
         submission.correctionData = payload.correctionData
     if payload.questionMarksJson is not None:
         submission.questionMarksJson = payload.questionMarksJson
+    if payload.correctedPdfUrl:
+        url = payload.correctedPdfUrl
+        if not url.startswith("/files/view/corrected/") or ".." in url:
+            raise HTTPException(status_code=400, detail="Invalid corrected file")
+        submission.correctedPdfUrl = url
     submission.graded_at = datetime.utcnow()
 
     db.commit()
@@ -597,7 +615,7 @@ def grade_exam_submission(
     # If student scored high (>= 90%), award high score bonus
     try:
         exam = db.query(Exam).filter(Exam.id == submission.exam_id).first()
-        if exam and payload.marksObtained is not None:
+        if exam and payload.marksObtained is not None and submission.status == "Graded":
             max_m = float(exam.maxMarks) if exam.maxMarks else 100.0
             obtained = float(payload.marksObtained)
             if max_m > 0 and (obtained / max_m) >= 0.90:

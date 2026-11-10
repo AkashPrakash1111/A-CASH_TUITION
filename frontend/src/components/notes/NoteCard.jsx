@@ -52,8 +52,11 @@ export default function NoteCard({
             {note.subject || "General"}
           </span>
           <div className="flex items-center gap-1.5">
+            {note.reviewStatus === "Reviewed" && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700">Checked</span>
+            )}
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 uppercase">
-              {isLink ? "LINK" : isPdf ? "PDF" : isImage ? "IMAGE" : "TEXT"}
+              {fileType === "files" ? "FILES" : isLink ? "LINK" : isPdf ? "PDF" : isImage ? "IMAGE" : "TEXT"}
             </span>
             {isOwnUpload ? (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700">
