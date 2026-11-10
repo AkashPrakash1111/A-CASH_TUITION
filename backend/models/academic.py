@@ -95,6 +95,16 @@ class Note(Base):
     # "class" = published by staff to a class/batch (the default, and what every
     # older row means); "private" = a student's own upload, visible only to them.
     visibility = Column(String, default="class", server_default="class")
+    # A student's upload can hold many photos / PDFs / voice notes: JSON list of {name, type, url}.
+    # fileUrl/fileName above stay as the first one, for older code.
+    attachmentsJson = Column(Text, nullable=True)
+    # The teacher's review of a student's upload (private notes only)
+    reviewStatus = Column(String, nullable=True)      # None | Reviewed
+    reviewFeedback = Column(Text, nullable=True)
+    correctionData = Column(Text, nullable=True)      # JSON annotation layer drawn by the teacher
+    correctedPdfUrl = Column(String, nullable=True)   # flattened, marked-up PDF
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_by = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -151,6 +161,7 @@ class AssignmentSubmission(Base):
     feedback = Column(Text, nullable=True)
     correctionData = Column(Text, nullable=True)
     questionMarksJson = Column(Text, nullable=True)
+    correctedPdfUrl = Column(String, nullable=True)   # flattened, marked-up PDF sent back to the student
     submitted_at = Column(DateTime, default=datetime.utcnow)
     graded_at = Column(DateTime, nullable=True)
 
@@ -209,6 +220,7 @@ class ExamSubmission(Base):
     feedback = Column(Text, nullable=True)
     correctionData = Column(Text, nullable=True)     # JSON serialized annotation layers
     questionMarksJson = Column(Text, nullable=True)  # JSON question-wise marks breakdown
+    correctedPdfUrl = Column(String, nullable=True)  # flattened, marked-up PDF sent back to the student
     status = Column(String, default="Submitted")    # In Progress | Submitted | Draft Graded | Graded
     started_at = Column(DateTime, default=datetime.utcnow)
     submitted_at = Column(DateTime, nullable=True)
